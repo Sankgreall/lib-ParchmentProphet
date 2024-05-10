@@ -1,0 +1,5 @@
+
+.env
+__init__.py
+*.pyc
+/venv
