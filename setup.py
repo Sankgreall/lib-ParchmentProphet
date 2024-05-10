@@ -13,7 +13,7 @@ setup(
         'tiktoken',
         'nltk',
         'bayoo-docx',
-        'git+https://github.com/JSv4/Python-Redlines',
+        'Python-Redlines @ git+https://github.com/JSv4/Python-Redlines.git',
         'bs4',
         'Elasticsearch',
     ],
