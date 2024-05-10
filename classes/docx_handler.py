@@ -6,7 +6,7 @@ import uuid
 import datetime
 import os
 
-from classes.document_handler import DocumentHandler
+from .document_handler import DocumentHandler
 from python_redlines.engines import XmlPowerToolsEngine
 
 

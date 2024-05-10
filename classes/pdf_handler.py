@@ -3,7 +3,7 @@ import tempfile
 import pdfminer.high_level
 from pdfminer.layout import LAParams
 
-from classes.document_handler import DocumentHandler
+from .document_handler import DocumentHandler
 
 
 class PDFHandler(DocumentHandler):

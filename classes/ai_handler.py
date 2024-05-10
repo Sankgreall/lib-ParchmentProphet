@@ -7,7 +7,7 @@ import re
 import json
 
 # Import text functions
-from modules.text import *
+from ..modules.text import *
 
 class AIHandler:
     

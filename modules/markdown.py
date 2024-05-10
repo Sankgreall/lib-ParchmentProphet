@@ -1,7 +1,7 @@
 import re
 import json
 from bs4 import BeautifulSoup
-from modules.text import sanitise_text
+from .text import sanitise_text
 
 
 def extract_markdown_titles(markdown_text):
