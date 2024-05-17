@@ -5,6 +5,8 @@ import re
 import uuid
 import datetime
 import os
+from docx.shared import RGBColor
+
 
 from .document_handler import DocumentHandler
 from python_redlines.engines import XmlPowerToolsEngine
@@ -18,44 +20,6 @@ class DOCXHandler(DocumentHandler):
         self.temp_file = None
         self.document = docx.Document(file_path)
         self.wrapper = XmlPowerToolsEngine()
-
-    def count_pages(self):
-        # This is a simplistic way of counting pages that may not be accurate for all documents.
-        return sum(1 for p in self.document.paragraphs if p.text == "\f") + 1
-
-    def remove_unwanted_pages(self, doc, keep_start, keep_end):
-        """
-        Removes pages not within the specified range.
-        Pages are identified by manual page breaks or section breaks.
-        """
-        current_page = 1
-        elements_to_keep = []
-        for element in doc.element.body:
-            if current_page >= keep_start and (keep_end is None or current_page <= keep_end):
-                elements_to_keep.append(element)
-            if element.tag.endswith('br') and element.get('type') == 'page':
-                current_page += 1
-                if current_page > keep_end:
-                    break
-
-        # Clear the document
-        while doc.element.body.hasChildNodes():
-            doc.element.body.removeChild(doc.element.body.lastChild)
-
-        # Re-add the elements to keep
-        for element in elements_to_keep:
-            doc.element.body.appendChild(element)
-    
-    def get_first_n_pages(self, n):
-        return self.transcribe_page_content(1, n)
-
-    def get_last_n_pages(self, n):
-        total_pages = self.count_pages()
-        start_page = max(total_pages - n + 1, 1)
-        return self.transcribe_page_content(start_page, total_pages)
-
-    def get_page_n(self, n):
-        return self.transcribe_page_content(n, n)
     
     def transcribe(self):
 
@@ -123,4 +87,121 @@ class DOCXHandler(DocumentHandler):
             output = self.wrapper.run_redline(author, self.file_path, temp_file.name)
             with open(self.file_path, 'wb') as f:
                 f.write(output[0])
+        
 
+    def convert_markdown_to_paragraphs(self, markdown_text, custom_style=None, style_mapping=None):
+        if style_mapping is None:
+            style_mapping = {
+                'heading1': 'Heading 1',
+                'heading2': 'Heading 2',
+                'bullet': 'List Bullet',
+                'body': 'Normal'
+            }
+
+        paragraphs = []
+        lines = markdown_text.split('\n')
+        for line in lines:
+            if line.startswith('# '):
+                # Heading 1
+                text = line[2:]
+                style = custom_style or style_mapping.get('heading1', 'Heading 1')
+                paragraphs.append((text, style))
+            elif line.startswith('## '):
+                # Heading 2
+                text = line[3:]
+                style = custom_style or style_mapping.get('heading2', 'Heading 2')
+                paragraphs.append((text, style))
+            elif line.startswith('- ') or line.startswith('* '):
+                # Bullet point
+                text = line[2:]
+                style = custom_style or style_mapping.get('bullet', 'List Bullet')  # Adjust the style as needed
+                paragraphs.append((text, style))
+            else:
+                # Paragraph
+                style = custom_style or style_mapping.get('body', 'Normal')
+                # Replace markdown syntax with custom tags
+                text = re.sub(r'__(.*?)__', r'<underline>\1</underline>', line)  # Underline
+                text = re.sub(r'\*\*(.*?)\*\*', r'<bold>\1</bold>', text)  # Bold
+                text = re.sub(r'_(.*?)_', r'<italic>\1</italic>', text)   # Italics
+                paragraphs.append((text, style))
+
+        return paragraphs
+
+    def apply_styles(self, paragraph, paragraphs, custom_color=None):
+        # Clear existing content
+        for run in paragraph.runs:
+            run.clear()
+
+        for i, (text, style_name) in enumerate(paragraphs):
+            if i == 0:
+                # First paragraph, modify in-place
+                self.add_text_with_formatting(paragraph, text, style_name, custom_color)
+            else:
+                # Additional paragraphs
+                new_paragraph = paragraph.insert_paragraph_before('')
+                new_paragraph.style = self.document.styles[style_name]
+                self.add_text_with_formatting(new_paragraph, text, style_name, custom_color)
+
+    def add_text_with_formatting(self, paragraph, text, style_name, custom_color=None):
+        paragraph.style = self.document.styles[style_name]
+        parts = re.split(r'(<bold>|</bold>|<italic>|</italic>|<underline>|</underline>)', text)
+        is_bold = False
+        is_italic = False
+        is_underline = False
+        for part in parts:
+            if part == '<bold>':
+                is_bold = True
+            elif part == '</bold>':
+                is_bold = False
+            elif part == '<italic>':
+                is_italic = True
+            elif part == '</italic>':
+                is_italic = False
+            elif part == '<underline>':
+                is_underline = True
+            elif part == '</underline>':
+                is_underline = False
+            else:
+                run = paragraph.add_run(part)
+                run.bold = is_bold
+                run.italic = is_italic
+                run.underline = is_underline
+                if custom_color:
+                    run.font.color.rgb = RGBColor(*custom_color)
+
+    def insert_text_at_placeholder(self, placeholder, markdown_text, custom_style=None, custom_color=None, style_mapping=None):
+        # Convert Markdown to paragraphs
+        paragraphs = self.convert_markdown_to_paragraphs(markdown_text, custom_style, style_mapping)
+        print("Paragraphs:", paragraphs)
+
+        # Concatenate the formatted text into a single string
+        replacement_text = "\n".join([text for text, _ in paragraphs])
+
+        # Loop through paragraphs in the document
+        for paragraph in self.document.paragraphs:
+            if placeholder in paragraph.text:
+                # Perform the replacement
+                paragraph.text = paragraph.text.replace(placeholder, replacement_text)
+                
+                # Apply styles to paragraphs
+                self.apply_styles(paragraph, paragraphs, custom_color)
+
+                self.document.save(self.file_path)
+                return True
+
+        # If the placeholder was not found in paragraphs, check in tables
+        for table in self.document.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    if placeholder in cell.text:
+                        # Perform the replacement
+                        cell_text = cell.text.replace(placeholder, replacement_text)
+                        cell.paragraphs[0].text = cell_text
+                        
+                        # Apply styles to paragraphs
+                        self.apply_styles(cell.paragraphs[0], paragraphs, custom_color)
+
+                        self.document.save(self.file_path)
+                        return True
+
+        return False

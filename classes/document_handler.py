@@ -9,7 +9,7 @@ class DocumentHandler(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def count_pages(self):
+    def insert_text_at_placeholder(self, placeholder, text_to_insert):
         pass
 
     def get_first_n_pages(self, n):

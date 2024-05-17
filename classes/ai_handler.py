@@ -8,6 +8,7 @@ import json
 
 # Import text functions
 from ..modules.text import *
+from ..modules.markdown import *
 
 class AIHandler:
     
@@ -27,7 +28,7 @@ class AIHandler:
         # Initialize the OpenAI
         self.client = OpenAI()
     
-    def request_completion(self, system_prompt, prompt, model="gpt-4-turbo", messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False):
+    def request_completion(self, system_prompt="", prompt="", model="gpt-4-turbo", messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False):
 
         # If messages are blank
         if messages == []:
@@ -165,6 +166,33 @@ class AIHandler:
             chunk_index += 1
 
         return title_structure_memory
+    
+    # Take a document exceeding max token limit and recursively summarise it
+    def recursive_summary(self, system_prompt, data, temperature=0.2, model="gpt-4-turbo"):
+
+        chunk_size = int(os.getenv("MAX_CONTEXT_TOKENS")) - (int(os.getenv("MAX_OUTPUT_TOKENS")) * 2) # One for output, one for previous summary
+        first_iteration = True
+
+        for chunk in chunk_large_text(data, chunk_size):
+
+            # Construct message object
+            if first_iteration:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": chunk}
+                ]
+                first_iteration = False
+
+            else:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"ROLLING SUMMARY\n----\n{output}"},
+                    {"role": "user", "content": chunk}
+                ]
+
+            output = self.request_completion(messages=messages, temperature=temperature, model=model)
+
+        return output
 
     def ask_question(self, function, system_prompt="", prompt="", temperature=""):
 
