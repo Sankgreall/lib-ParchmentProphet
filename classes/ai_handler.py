@@ -10,6 +10,8 @@ import json
 from ..modules.text import *
 from ..modules.markdown import *
 
+DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
+
 class AIHandler:
     
     def __init__(self, api_key=None, max_output_tokens=None, max_context_tokens=None):
@@ -28,7 +30,7 @@ class AIHandler:
         # Initialize the OpenAI
         self.client = OpenAI()
     
-    def request_completion(self, system_prompt="", prompt="", model="gpt-4-turbo", messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False):
+    def request_completion(self, system_prompt="", prompt="", model=DEFAULT_MODEL, messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False):
 
         # If messages are blank
         if messages == []:
@@ -186,48 +188,78 @@ class AIHandler:
             else:
                 messages = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"ROLLING SUMMARY\n----\n{output}"},
-                    {"role": "user", "content": chunk}
+                    {"role": "user", "content": f"Document summary so far\n----\n{output}"},
+                    {"role": "user", "content": f"Next document chunk\n----\n{chunk}"}
                 ]
 
             output = self.request_completion(messages=messages, temperature=temperature, model=model)
 
         return output
 
-    def ask_question(self, function, system_prompt="", prompt="", temperature=""):
+    def complete_questionnaire(self, system_prompt, prompt_path, questions, input_files):
 
-        messages = [
-            {"role": "system", "content": "Respond to the following question."},
-            {"role": "user", "content": "What is 7 + 3?"}
-        ]
-
-        tools = [
-            {
-                "type": "function",
-                "function": {
-                    "name": function.__name__,
-                    "description": "Adds two numbers together",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "arg1": {"type": "number", "description": "The first number to add"},
-                            "arg2": {"type": "number", "description": "The second number to add"},
-                        },
-                        "required": ["arg1", "arg2"],
-                    },
-                },
-            }
-        ]
-
-        available_functions = {function.__name__: function}
-
-        response = self.client.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=messages,
-            tools=tools,
-            tool_choice="auto",
-        )
-
-        response_message = response.choices[0].message
-        return response_message
+        # Check questions variable is an array of dictionary objects contains keys
+        # - question
+        # - answer
+        # - category
+        # - example_answer
+        for question in questions:
+            if "question" not in question or "answer" not in question or "category" not in question or "example_answer" not in question:
+                raise ValueError("Questions array must contain question, answer, category, and example_answer keys.")
         
+        # For each question
+        for question in questions:
+
+            # Keep track of the answer we construct over time
+            partial_answer = ""
+            final_answer = ""
+
+            # Answer the question, looking across all input files
+            for input_file in input_files:
+
+                # Read the input file (must be markdown or text)
+                with open(input_file, 'r') as file:
+                    data = file.read()
+
+                # Check if data exceeds token limit
+                if count_tokens(data) > self.max_context_tokens + self.max_output_tokens:
+
+                    # Chunk it up
+                    for chunk in chunk_large_text(data, (self.max_context_tokens - self.max_output_tokens)):
+
+                        # If partial answer is not empty, we need to add it to the prompt
+                        if partial_answer:
+                            partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer:{partial_answer}\n\n----\n\n"
+                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": partial_answer_prompt, "question": question["question"], "example_answer": question["example_answer"]})
+                        else:
+                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": "", "question": question["question"], "example_answer": question["example_answer"]})
+                        
+                        response = self.request_completion(system_prompt, prompt, json_output=True)
+                        response = json.loads(response)
+
+                        # If we recieved a response, set it as the partial answer
+                        if response["answer"]:
+                            partial_answer = response["answer"]
+                    
+                # Else, we can just use the data as is
+                else:
+                    # If partial answer is not empty, we need to add it to the prompt
+                    if partial_answer:
+                        partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer:{partial_answer}\n\n----\n\n"
+                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": partial_answer_prompt, "question": question["question"], "example_answer": question["example_answer"]})
+                    else:
+                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": "", "question": question["question"], "example_answer": question["example_answer"]})
+
+                    response = self.request_completion(system_prompt, prompt, json_output=True)
+                    response = json.loads(response)
+
+                    # If we recieved a response, set it as the partial answer
+                    if response["answer"]:
+                        partial_answer = response["answer"]
+
+            # Once we have the final answer, add it to the question object
+            final_answer = partial_answer
+            question["answer"] = final_answer
+
+        return questions
+    
