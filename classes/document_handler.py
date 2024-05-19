@@ -8,10 +8,6 @@ class DocumentHandler(abc.ABC):
     def transcribe(self):
         pass
 
-    @abc.abstractmethod
-    def insert_text_at_placeholder(self, placeholder, text_to_insert):
-        pass
-
     def get_first_n_pages(self, n):
         pass
 
