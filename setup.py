@@ -16,5 +16,7 @@ setup(
         'Python-Redlines @ git+https://github.com/JSv4/Python-Redlines.git',
         'bs4',
         'Elasticsearch',
+        'openpyxl',
+        'xlrd'
     ],
 )

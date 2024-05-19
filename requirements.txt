@@ -9,3 +9,5 @@ bayoo-docx
 git+https://github.com/JSv4/Python-Redlines
 bs4
 Elasticsearch
+openpyxl
+xlrd

@@ -35,5 +35,8 @@ class DocumentHandler(abc.ABC):
         elif file_path.endswith('.docx'):
             from .docx_handler import DOCXHandler
             return DOCXHandler(file_path)
+        elif file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+            from .excel_handler import ExcelHandler
+            return ExcelHandler(file_path)
         else:
             raise ValueError("Unsupported file format")
