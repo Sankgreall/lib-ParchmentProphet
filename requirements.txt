@@ -11,3 +11,16 @@ bs4
 Elasticsearch
 openpyxl
 xlrd
+numpy
+pandas
+scikit-learn
+syllapy
+textstat
+matplotlib
+scipy
+spacy
+networkx
+transformers
+torch
+# Run the following command after installing requirements:
+# python -m spacy download en_core_web_sm

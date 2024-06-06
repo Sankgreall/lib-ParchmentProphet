@@ -8,31 +8,19 @@ class DocumentHandler(abc.ABC):
     def transcribe(self):
         pass
 
-    def get_first_n_pages(self, n):
-        pass
-
-    def get_last_n_pages(self, n): 
-        pass
-
-    def get_page_n(self, n):
-        pass
-
-    def add_comment(self, text, comment):
-        pass
-
-    def track_change(self, text, replacement):
-        pass
-
     @classmethod
     def load(cls, file_path):
-        if file_path.endswith('.pdf'):
-            from .pdf_handler import PDFHandler
-            return PDFHandler(file_path)
-        elif file_path.endswith('.docx'):
-            from .docx_handler import DOCXHandler
-            return DOCXHandler(file_path)
-        elif file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-            from .excel_handler import ExcelHandler
-            return ExcelHandler(file_path)
-        else:
-            raise ValueError("Unsupported file format")
+            if file_path.endswith('.pdf'):
+                from .pdf_handler import PDFHandler
+                return PDFHandler(file_path)
+            elif file_path.endswith('.docx'):
+                from .docx_handler import DOCXHandler
+                return DOCXHandler(file_path)
+            elif file_path.endswith('.xlsx') or file_path.endswith('.xls'):
+                from .excel_handler import ExcelHandler
+                return ExcelHandler(file_path)
+            elif file_path.endswith('.txt'):
+                from .txt_handler import TXTHandler
+                return TXTHandler(file_path)
+            else:
+                raise ValueError("Unsupported file format")
