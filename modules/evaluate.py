@@ -1,4 +1,5 @@
 import re
+import sys
 import numpy as np
 import pandas as pd
 import nltk
@@ -17,16 +18,17 @@ import spacy
 import networkx as nx
 from networkx.algorithms.similarity import graph_edit_distance
 from transformers import pipeline
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.spatial.distance import euclidean
 
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('words')
-nltk.download('maxent_ne_chunker')
+from classes.ai_handler import AIHandler
 
-nlp = spacy.load('en_core_web_lg')
-ner_pipeline = pipeline("ner", model="dbmdz/bert-large-cased-finetuned-conll03-english", grouped_entities=True)
+ai = AIHandler()
 
-
+nltk.download('punkt', quiet=True)
+nltk.download('stopwords', quiet=True)
+nltk.download('words', quiet=True)
+nltk.download('maxent_ne_chunker', quiet=True)
 
 def preprocess_text(text):
     # Remove markdown links, images, and titles
@@ -331,59 +333,69 @@ def compare_samples_pca(sample_list):
 
     return pca_df, individual_scores, avg_human_score, avg_ai_score
 
-def ner_overlap_similarity(human_text, ai_text):
-    human_entities_raw = ner_pipeline(human_text)
-    ai_entities_raw = ner_pipeline(ai_text)
+def compute_distance_and_angle(human_text, ai_text, model="text-embedding-3-small"):
+    """
+    Computes the Euclidean distance and cosine similarity angle between human and AI-generated text embeddings.
 
-    print("Raw Human Entities:")
-    print(human_entities_raw)
-    print("Raw AI Entities:")
-    print(ai_entities_raw)
+    Args:
+        human_text (str): The human-generated text.
+        ai_text (str): The AI-generated text.
+        model (str): The embedding model to be used. Defaults to "text-embedding-3-small".
 
-    # Extract entity texts
-    human_entities = {entity['word'] for entity in human_entities_raw}
-    ai_entities = {entity['word'] for entity in ai_entities_raw}
+    Returns:
+        tuple: A tuple containing the Euclidean distance and cosine similarity angle.
+    """
+    embeddings = ai.vectorise([human_text, ai_text], model=model)
+    human_vector = np.array(embeddings[0])
+    ai_vector = np.array(embeddings[1])
 
-    print("Processed Human Entities:")
-    print(human_entities)
-    print("Processed AI Entities:")
-    print(ai_entities)
+    euclidean_distance = euclidean(human_vector, ai_vector)
+    cosine_sim = cosine_similarity([human_vector], [ai_vector])[0][0]
+    angle = np.arccos(cosine_sim)
 
-    intersection = human_entities.intersection(ai_entities)
-    union = human_entities.union(ai_entities)
+    return euclidean_distance, angle
 
-    print(f"Intersection: {intersection}")
-    print(f"Union: {union}")
+def compute_average_vector_scores(samples, model="text-embedding-3-small"):
+    """
+    Computes the average Euclidean distance and cosine similarity angle for a list of human and AI-generated text samples.
 
-    jaccard_similarity = len(intersection) / len(union) if union else 0.0
+    Args:
+        samples (list): A list of dictionaries containing human-generated and AI-generated text.
+        model (str): The embedding model to be used. Defaults to "text-embedding-3-small".
 
-    return jaccard_similarity
-
-def compute_ner_similarity(samples):
-    ner_results = []
+    Returns:
+        tuple: A tuple containing the average Euclidean distance and average cosine similarity angle.
+    """
+    total_distance = 0
+    total_angle = 0
+    num_samples = len(samples)
 
     for sample in samples:
         human_text = sample["human_generated"]
         ai_text = sample["ai_generated"]
 
-        ner_similarity = ner_overlap_similarity(human_text, ai_text)
+        distance, angle = compute_distance_and_angle(human_text, ai_text, model=model)
+        total_distance += distance
+        total_angle += angle
 
-        result = {
-            "NER Similarity": ner_similarity,
-        }
-        ner_results.append(result)
+    avg_distance = total_distance / num_samples
+    avg_angle = total_angle / num_samples
 
-    ner_df = pd.DataFrame(ner_results)
-    avg_ner_similarity = ner_df["NER Similarity"].mean()
+    return avg_distance, avg_angle
 
-    return ner_df, avg_ner_similarity
+def run(samples):
+
+    linguistic_scores, linguistic_distance = compare_samples_nd(samples)
+    avg_distance, avg_angle = compute_average_vector_scores(samples)
+
+    return linguistic_scores, linguistic_distance, avg_distance, avg_angle
 
 if __name__ == "__main__":
     samples = [
         {
             "human_generated": (
                 "The advancements in artificial intelligence over the past decade "
-                "have been remarkable. Researchers at MIT and Google have developed algorithms that "
+                "have been remarkable. Researchers have developed algorithms that "
                 "can learn from data, recognize patterns, and make decisions with "
                 "a high degree of accuracy. However, ethical concerns remain, particularly "
                 "around the potential for bias and the impact on employment. Addressing these "
@@ -391,10 +403,10 @@ if __name__ == "__main__":
                 "policymakers in the United States, and the public."
             ),
             "ai_generated": (
-                "The incredible advancements in toy bunnies over the past decade "
-                "have been remarkable. Researchers at MIT and Google have developed algorithms that "
-                "can learn from data, recognize patterns, and make decisions with "
-                "a high degree of accuracy. However, ethical concerns remain, particularly "
+                "The significant advancements in animal husbandry over the past decade "
+                "have been largely unremarkable. Researchers have developed algorithms that "
+                "can forget data, fail to recognize patterns, and make decisions with "
+                "a very low level of accuracy. However, ethical concerns remain, particularly "
                 "around the potential for bias and the impact on employment. Addressing these "
                 "issues will require ongoing dialogue and collaboration between technologists, "
                 "policymakers in the United States, and the public."
@@ -409,20 +421,21 @@ if __name__ == "__main__":
                 "sources, and enhancing resilience through better infrastructure and planning, according to the UN."
             ),
             "ai_generated": (
-                "Swamp change poses a really significant threat to ecosystems and human societies. "
-                "The increasing frequency and intensity of extreme weather events, rising sea levels, "
-                "and shifting swamp patterns are already having profound impacts. Efforts to mitigate "
-                "these effects include reducing greenhouse gas emissions, transitioning to renewable energy "
-                "sources, and enhancing resilience through better infrastructure and planning, according to the UN."
+                "Climate change does not pose a significant threat to ecosystems and human societies. "
+                "The decreasing frequency and intensity of extreme weather events, rising sea levels, "
+                "and shifting climate patterns are already having profound impacts. Efforts to mitigate "
+                "these effects include increasing greenhouse gas emissions, transitioning away from renewable energy "
+                "sources, and discouraging resilience through worse infrastructure and planning, according to the UN."
             )
         }
     ]
+
     # Compute linguistic similarity
     linguistic_scores, linguistic_distance = compare_samples_nd(samples)
     print("Linguistic Distance:", linguistic_distance)
 
-    # Compute NER similarity
-    ner_df, avg_ner_similarity = compute_ner_similarity(samples)
-    print(ner_df)
-    print("Average NER Similarity:", avg_ner_similarity)
+    avg_distance, avg_angle = compute_average_vector_scores(samples)
+    print(f"Average Euclidean Distance: {avg_distance}")
+    print(f"Average Cosine Similarity Angle: {avg_angle}")
+
 

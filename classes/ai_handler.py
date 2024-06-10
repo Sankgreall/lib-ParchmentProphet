@@ -7,8 +7,14 @@ import re
 import json
 
 # Import text functions
-from ..modules.text import *
-from ..modules.markdown import *
+try:
+    # Try relative imports for deployment
+    from ..modules.text import *
+    from ..modules.markdown import *
+except ImportError:
+    # Fallback to absolute imports for local testing
+    from modules.text import *
+    from modules.markdown import *
 
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
 
@@ -263,3 +269,20 @@ class AIHandler:
 
         return questions
     
+    def vectorise(self, texts, model="text-embedding-3-small"):
+        """
+        Converts a given text string or an array of text strings into their corresponding embedding vectors using the OpenAI embeddings API.
+
+        Args:
+            texts (str or list): The input text(s) to be converted into embedding vector(s).
+            model (str): The embedding model to be used. Defaults to "text-embedding-3-small".
+
+        Returns:
+            list: A list of embedding vectors corresponding to the input text(s).
+        """
+        if isinstance(texts, str):
+            texts = [texts]
+
+        texts = [text.replace("\n", " ") for text in texts]
+        response = self.client.embeddings.create(input=texts, model=model)
+        return [data.embedding for data in response.data]
