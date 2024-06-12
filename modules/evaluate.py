@@ -21,7 +21,10 @@ from transformers import pipeline
 from sklearn.metrics.pairwise import cosine_similarity
 from scipy.spatial.distance import euclidean
 
-from classes.ai_handler import AIHandler
+try:
+    from ..classes.ai_handler import AIHandler
+except ImportError:
+    from classes.ai_handler import AIHandler
 
 ai = AIHandler()
 
@@ -272,7 +275,6 @@ def compare_samples_nd(samples):
     human_df = pd.DataFrame(human_features_list)
     ai_df = pd.DataFrame(ai_features_list)
 
-
     # Standardize features
     scaler = StandardScaler()
     standardized_human_features = scaler.fit_transform(human_df)
@@ -281,8 +283,11 @@ def compare_samples_nd(samples):
     # Compute Euclidean distances
     distances = [euclidean(standardized_human_features[i], standardized_ai_features[i]) for i in range(len(samples))]
 
-    # Compute average distances
+    # Compute average, min, max, and standard deviation of distances
     avg_distance = np.mean(distances)
+    min_distance = np.min(distances)
+    max_distance = np.max(distances)
+    std_dev_distance = np.std(distances)
 
     # Prepare individual scores DataFrame
     individual_scores = pd.DataFrame({
@@ -291,7 +296,7 @@ def compare_samples_nd(samples):
         "Distance": distances
     })
 
-    return individual_scores, avg_distance
+    return individual_scores, avg_distance, min_distance, max_distance, std_dev_distance
 
 def compare_samples_pca(sample_list):
     human_features_list = []
@@ -364,24 +369,30 @@ def compute_average_vector_scores(samples, model="text-embedding-3-small"):
         model (str): The embedding model to be used. Defaults to "text-embedding-3-small".
 
     Returns:
-        tuple: A tuple containing the average Euclidean distance and average cosine similarity angle.
+        tuple: A tuple containing the average, min, max, and standard deviation for Euclidean distance and cosine similarity angle.
     """
-    total_distance = 0
-    total_angle = 0
-    num_samples = len(samples)
+    distances = []
+    angles = []
 
     for sample in samples:
         human_text = sample["human_generated"]
         ai_text = sample["ai_generated"]
 
         distance, angle = compute_distance_and_angle(human_text, ai_text, model=model)
-        total_distance += distance
-        total_angle += angle
+        distances.append(distance)
+        angles.append(angle)
 
-    avg_distance = total_distance / num_samples
-    avg_angle = total_angle / num_samples
+    avg_distance = np.mean(distances)
+    min_distance = np.min(distances)
+    max_distance = np.max(distances)
+    std_dev_distance = np.std(distances)
 
-    return avg_distance, avg_angle
+    avg_angle = np.mean(angles)
+    min_angle = np.min(angles)
+    max_angle = np.max(angles)
+    std_dev_angle = np.std(angles)
+
+    return avg_distance, min_distance, max_distance, std_dev_distance, avg_angle, min_angle, max_angle, std_dev_angle
 
 def run(samples):
 
