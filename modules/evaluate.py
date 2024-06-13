@@ -32,6 +32,7 @@ nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 nltk.download('words', quiet=True)
 nltk.download('maxent_ne_chunker', quiet=True)
+nltk.download('averaged_perceptron_tagger', quiet=True)
 
 def preprocess_text(text):
     # Remove markdown links, images, and titles
