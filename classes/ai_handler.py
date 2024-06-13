@@ -34,7 +34,7 @@ class AIHandler:
             self.max_context_tokens = int(os.getenv("max_context_tokens"))
 
         # Initialize the OpenAI
-        self.client = OpenAI()
+        self.client = OpenAI(api_key=self.api_key)
     
     def request_completion(self, system_prompt="", prompt="", model=DEFAULT_MODEL, messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False):
 
