@@ -3,6 +3,7 @@ import tempfile
 import pdfminer.high_level
 from pdfminer.layout import LAParams
 from pdf2image import convert_from_path
+import pytesseract
 import io
 import base64
 
