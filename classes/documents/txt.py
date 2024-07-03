@@ -1,5 +1,5 @@
 import tempfile
-from .document_handler import DocumentHandler
+from ..document_handler import DocumentHandler
 
 class TXTHandler(DocumentHandler):
     def __init__(self, file_path):

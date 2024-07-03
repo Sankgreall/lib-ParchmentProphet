@@ -2,9 +2,23 @@ import os
 import tempfile
 import pdfminer.high_level
 from pdfminer.layout import LAParams
+from pdf2image import convert_from_path
+import pytesseract
+import io
+import base64
 
-from .document_handler import DocumentHandler
+from ..document_handler import DocumentHandler#
+from ..ai_handler import AIHandler
 
+# Import text functions
+try:
+    # Try relative imports for deployment
+    from ....modules.text import *
+except ImportError:
+    # Fallback to absolute imports for local testing
+    from modules.text import *
+
+ai = AIHandler.load()
 
 class PDFHandler(DocumentHandler):
 
@@ -130,3 +144,55 @@ class PDFHandler(DocumentHandler):
                     pass
             return None
         
+    def image_ocr(self, skip=0, system_prompt_path=None, prompt_path=None):
+
+        if system_prompt_path is None:
+            system_prompt = """
+            Your are a data entry assistant processing a PDF form. You must accurately transcribe the contents of the PDF images you are shown and output a transcription in markdown format.
+
+            To complete your job, carefully follow the steps below.
+
+            Step One: Meticulously and diligently read the form and identify all questions the form asks of the applicant.
+
+            Step Two: For each question, identify where the applicant has submitted an answer. Some answers might be in the format of a checkbox, date, or other field. Be careful to identify what form the answer has taken and record its state.
+
+            Step Three: Output your transcription of the form as markdown submitted text. Do not put the markdown in a codeblock. Represent fields such as checkboxes in plain text, for example "[ x ]" and "[ ]".
+
+            Do not reply with any other content except your transcription.
+            """
+        else:
+            system_prompt = load_prompt(system_prompt_path)
+
+        if prompt_path is None:
+            prompt = """
+            Please extract the text from this image. Do not reply with any other content except your transcription.
+            """
+        else:
+            prompt = load_prompt(prompt_path)
+
+        images = convert_from_path(self.file_path)
+        combined_text = ""
+
+        for index, image in enumerate(images):
+
+            if index < skip:
+                continue
+
+            # Convert the PIL image to a byte array
+            img_byte_arr = io.BytesIO()
+            image.save(img_byte_arr, format='PNG')
+            img_byte_arr = img_byte_arr.getvalue()
+
+            # Encode the byte array to base64
+            base64_image = base64.b64encode(img_byte_arr).decode('utf-8')
+
+            # Make the request to the OpenAI API with the image
+            response = ai.request_completion(
+                system_prompt=system_prompt,
+                prompt=prompt,
+                image=base64_image
+            )
+
+            combined_text += response + "\n\n"
+
+        return combined_text

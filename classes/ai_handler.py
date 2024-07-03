@@ -25,15 +25,9 @@ class AIHandler(abc.ABC):
         pass
 
     @classmethod
-    def load(cls, ai_provider):
+    def load(cls, ai_provider='openai'):
         if ai_provider.lower() == 'openai':
             from .ai.openai import OpenAIHandler
             return OpenAIHandler()
-        elif ai_provider.lower() == 'anthropic':
-            from .ai.anthropic import AnthropicHandler
-            return AnthropicHandler()
-        elif ai_provider.lower() == 'gemini':
-            from .ai.gemini import GeminiHandler
-            return GeminiHandler()
         else:
             raise ValueError("Unsupported AI provider")

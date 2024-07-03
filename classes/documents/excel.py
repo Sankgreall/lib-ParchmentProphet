@@ -2,7 +2,7 @@ import os
 import tempfile
 import openpyxl
 import xlrd
-from .document_handler import DocumentHandler
+from ..document_handler import DocumentHandler
 
 class ExcelHandler(DocumentHandler):
 

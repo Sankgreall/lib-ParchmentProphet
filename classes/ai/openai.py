@@ -2,6 +2,12 @@ import os
 from openai import OpenAI
 import tiktoken
 import json
+from pdf2image import convert_from_path
+from PIL import Image
+import io
+import base64
+from io import BytesIO
+
 
 # Import text functions
 try:
@@ -30,14 +36,19 @@ class OpenAIHandler:
         self.client = OpenAI(api_key=self.api_key)
 
     
-    def request_completion(self, system_prompt="", prompt="", model=None, messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False):
+    def request_completion(self, system_prompt="", prompt="", model=None, messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False, image=None):
+
+        def get_image_dimensions(image_base64):
+            image_data = base64.b64decode(image_base64)
+            image = Image.open(BytesIO(image_data))
+            return image.width, image.height
 
         ####################################################################
         # Construct the messages object
         ####################################################################
 
         # If messages are blank
-        if messages == []:
+        if messages == [] and image == None:
             # Compile messages
             messages = [
                 {
@@ -49,6 +60,22 @@ class OpenAIHandler:
                     "content": prompt
                 }
             ]
+        
+        if messages == [] and image != None:
+            # Compile messages
+            messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image}"}}
+                    ]
+                },
+            ]
 
         # Else, messages are passed directly in
 
@@ -59,8 +86,27 @@ class OpenAIHandler:
         # Load the tokenizer for the specified model
         enc = tiktoken.encoding_for_model(model if model else self.default_model)
         
+        def count_tokens(message_content):
+            if isinstance(message_content, list):
+                return sum(len(enc.encode(part["text"])) if part["type"] == "text" else 0 for part in message_content)
+            else:
+                return len(enc.encode(message_content))
+
         # Calculate the total number of tokens in all messages
-        total_tokens = sum([len(enc.encode(message["content"])) for message in messages])
+        total_tokens = sum(count_tokens(message["content"]) for message in messages)
+
+        # Add the tokens for the image if present
+        if image is not None:
+            image_width, image_height = get_image_dimensions(image)
+
+            if image_width <= 512 and image_height <= 512:
+                total_tokens += 85
+            else:
+                # Calculate number of 512x512 tiles
+                tiles_x = (image_width + 511) // 512  # ceiling division
+                tiles_y = (image_height + 511) // 512  # ceiling division
+                total_tiles = tiles_x * tiles_y
+                total_tokens += 85 + (170 * total_tiles)
 
         # Check if the total tokens exceed the allowed context tokens minus max output tokens
         if total_tokens > (self.max_context_tokens - self.max_output_tokens):
@@ -218,6 +264,7 @@ class OpenAIHandler:
 
     def complete_questionnaire(self, system_prompt, prompt_path, questions, input_files):
 
+
         # Check questions variable is an array of dictionary objects contains keys
         # - question
         # - answer
@@ -238,7 +285,7 @@ class OpenAIHandler:
             for input_file in input_files:
 
                 # Read the input file (must be markdown or text)
-                with open(input_file, 'r') as file:
+                with open(input_file, 'r', encoding='utf-8') as file:
                     data = file.read()
 
                 # Check if data exceeds token limit
