@@ -15,7 +15,7 @@ try:
     from ....modules.text import *
 except ImportError:
     # Fallback to absolute imports for local testing
-    from modules.text import *
+    from ParchmentProphet.modules.text import *
 
 ai = AIHandler.load()
 

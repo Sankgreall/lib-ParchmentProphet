@@ -16,8 +16,8 @@ try:
     from ....modules.markdown import *
 except ImportError:
     # Fallback to absolute imports for local testing
-    from modules.text import *
-    from modules.markdown import *
+    from ParchmentProphet.modules.text import *
+    from ParchmentProphet.modules.markdown import *
 
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
 
