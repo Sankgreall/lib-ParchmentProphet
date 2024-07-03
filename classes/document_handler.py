@@ -11,16 +11,16 @@ class DocumentHandler(abc.ABC):
     @classmethod
     def load(cls, file_path):
             if file_path.endswith('.pdf'):
-                from .pdf_handler import PDFHandler
+                from .documents.pdf import PDFHandler
                 return PDFHandler(file_path)
             elif file_path.endswith('.docx'):
-                from .docx_handler import DOCXHandler
+                from .documents.docx import DOCXHandler
                 return DOCXHandler(file_path)
             elif file_path.endswith('.xlsx') or file_path.endswith('.xls'):
-                from .excel_handler import ExcelHandler
+                from .documents.excel import ExcelHandler
                 return ExcelHandler(file_path)
             elif file_path.endswith('.txt'):
-                from .txt_handler import TXTHandler
+                from .documents.txt import TXTHandler
                 return TXTHandler(file_path)
             else:
                 raise ValueError("Unsupported file format")

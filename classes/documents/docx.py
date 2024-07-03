@@ -8,7 +8,7 @@ import os
 from docx.shared import RGBColor
 
 
-from .document_handler import DocumentHandler
+from ..document_handler import DocumentHandler
 from python_redlines.engines import XmlPowerToolsEngine
 
 
