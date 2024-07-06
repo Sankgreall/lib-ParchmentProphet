@@ -34,8 +34,9 @@ transcribed_text = doc_handler.transcribe()
 # Load the AIHandler (defaults to OpenAI)
 ai_handler = AIHandler.load()
 
-# recursive_summary will work even when the PDF contents exceeds the max_tokens available 
-# in your LLM. It does this by dynamically chunking the content and summarisation chunks in increments.
+# recursive_summary will work even when the PDF contents exceeds the max_tokens
+# available in your LLM. It does this by dynamically chunking the content and 
+# summarisation chunks in increments.
 summary = ai_handler.recursive_summary(system_prompt, transcribed_text)
 
 print(summary)
