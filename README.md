@@ -55,8 +55,14 @@ samples = [
     # Add more sample pairs as needed
 ]
 
+# Compute the average Euclidian distance between language features
 linguistic_scores, linguistic_distance = compare_samples_nd(samples)
+
+# Print the average distance for the model (all samples)
 print("Linguistic Distance:", linguistic_distance)
+
+# Print the feature calculations for all samples
+print(linguistic_scores)
 ```
 
 ## Installation
