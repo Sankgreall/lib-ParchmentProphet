@@ -24,5 +24,7 @@ transformers
 torch
 cryptography==41.0.7
 pdf2image
+anthropic
+tenacity
 # Run the following command after installing requirements:
 # python -m spacy download en_core_web_sm

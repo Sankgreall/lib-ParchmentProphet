@@ -17,6 +17,26 @@ setup(
         'bs4',
         'Elasticsearch',
         'openpyxl',
-        'xlrd'
+        'xlrd',
+        'numpy',
+        'pandas',
+        'scikit-learn',
+        'syllapy',
+        'textstat',
+        'matplotlib',
+        'scipy',
+        'spacy',
+        'networkx',
+        'transformers',
+        'torch',
+        'cryptography==41.0.7',
+        'pdf2image',
+        'tenacity'
     ],
+    entry_points={
+        'console_scripts': [
+            'spacy_en_download = spacy.cli:download',
+        ],
+    },
 )
+

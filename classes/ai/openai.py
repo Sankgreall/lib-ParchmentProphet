@@ -19,8 +19,6 @@ except ImportError:
     from ParchmentProphet.modules.text import *
     from ParchmentProphet.modules.markdown import *
 
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
-
 class OpenAIHandler:
     
     def __init__(self, api_key=None, max_output_tokens=None, max_context_tokens=None, default_model=None):
