@@ -14,6 +14,9 @@ es = Elasticsearch(
     basic_auth=(elastic_username, elastic_password),
 )
 
+def ges_es():
+    return es
+
 # Elasticsearch CRUD operations
 def create_es_index(index_name):
     es.indices.create(index=index_name, ignore=400)
@@ -34,3 +37,6 @@ def delete_from_es(index_name, document_id):
 
 def search_es(index_name, query):
     return es.search(index=index_name, body=query)
+
+def update_document(index_name, document_id, updated_fields):
+    es.update(index=index_name, id=document_id, body={"doc": updated_fields})
