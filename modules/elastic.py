@@ -14,7 +14,7 @@ es = Elasticsearch(
     basic_auth=(elastic_username, elastic_password),
 )
 
-def ges_es():
+def get_es():
     return es
 
 # Elasticsearch CRUD operations
