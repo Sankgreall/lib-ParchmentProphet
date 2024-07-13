@@ -92,7 +92,6 @@ class DOCXHandler(DocumentHandler):
     def insert_text_at_placeholder(self, placeholder, markdown_text, custom_style=None, custom_color=None, style_mapping=None):
         # Convert Markdown to paragraphs
         paragraphs = self._convert_markdown_to_paragraphs(markdown_text, custom_style, style_mapping)
-        print("Paragraphs:", paragraphs)
 
         # Concatenate the formatted text into a single string
         replacement_text = "\n".join([text for text, _ in paragraphs])
