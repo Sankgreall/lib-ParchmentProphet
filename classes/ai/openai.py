@@ -262,8 +262,7 @@ class OpenAIHandler:
 
     def complete_questionnaire(self, system_prompt, prompt_path, questions, input_files):
 
-
-        # Check questions variable is an array of dictionary objects contains keys
+        # Check questions variable is an array of dictionary objects containing keys
         # - question
         # - answer
         # - category
@@ -279,6 +278,12 @@ class OpenAIHandler:
             partial_answer = ""
             final_answer = ""
 
+            # Check for other questions in the same category with final answers
+            related_answers = ""
+            for other_question in questions:
+                if other_question["category"] == question["category"] and other_question["answer"]:
+                    related_answers += f"Question: {other_question['question']}\nAnswer: {other_question['answer']}\n\n"
+
             # Answer the question, looking across all input files
             for input_file in input_files:
 
@@ -286,23 +291,26 @@ class OpenAIHandler:
                 with open(input_file, 'r', encoding='utf-8') as file:
                     data = file.read()
 
+                prompt_tokens = load_prompt(prompt_path, {"data": "", "partial_answer": "", "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
+                content_tokens = count_tokens(data) + count_tokens(prompt_tokens) + 200 # 200 for partial answer placeholder
+
                 # Check if data exceeds token limit
-                if count_tokens(data) > self.max_context_tokens + self.max_output_tokens:
+                if content_tokens > self.max_context_tokens + self.max_output_tokens:
 
                     # Chunk it up
-                    for chunk in chunk_large_text(data, (self.max_context_tokens - self.max_output_tokens)):
+                    for chunk in chunk_large_text(data, (self.max_context_tokens - self.max_output_tokens - (prompt_tokens - 200))): # 200 for partial answer placeholder
 
                         # If partial answer is not empty, we need to add it to the prompt
                         if partial_answer:
-                            partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer:{partial_answer}\n\n----\n\n"
-                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": partial_answer_prompt, "question": question["question"], "example_answer": question["example_answer"]})
+                            partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below based on a review of other data. Consider this answer as a baseline for you to expand or challenge as you review this additional data.\n\nPartial answer: {partial_answer}\n\n----\n\n"
+                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": partial_answer_prompt, "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
                         else:
-                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": "", "question": question["question"], "example_answer": question["example_answer"]})
+                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": "", "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
                         
                         response = self.request_completion(system_prompt, prompt, json_output=True)
                         response = json.loads(response)
 
-                        # If we recieved a response, set it as the partial answer
+                        # If we received a response, set it as the partial answer
                         if response["answer"]:
                             partial_answer = response["answer"]
                     
@@ -310,15 +318,15 @@ class OpenAIHandler:
                 else:
                     # If partial answer is not empty, we need to add it to the prompt
                     if partial_answer:
-                        partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer:{partial_answer}\n\n----\n\n"
-                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": partial_answer_prompt, "question": question["question"], "example_answer": question["example_answer"]})
+                        partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer: {partial_answer}\n\n----\n\n"
+                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": partial_answer_prompt, "additional_context": additional_context, "question": question["question"], "example_answer": question["example_answer"]})
                     else:
-                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": "", "question": question["question"], "example_answer": question["example_answer"]})
+                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": "", "additional_context": additional_context, "question": question["question"], "example_answer": question["example_answer"]})
 
                     response = self.request_completion(system_prompt, prompt, json_output=True)
                     response = json.loads(response)
 
-                    # If we recieved a response, set it as the partial answer
+                    # If we received a response, set it as the partial answer
                     if response["answer"]:
                         partial_answer = response["answer"]
 
