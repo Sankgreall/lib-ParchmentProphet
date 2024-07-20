@@ -319,9 +319,9 @@ class OpenAIHandler:
                     # If partial answer is not empty, we need to add it to the prompt
                     if partial_answer:
                         partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer: {partial_answer}\n\n----\n\n"
-                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": partial_answer_prompt, "additional_context": additional_context, "question": question["question"], "example_answer": question["example_answer"]})
+                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": partial_answer_prompt, "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
                     else:
-                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": "", "additional_context": additional_context, "question": question["question"], "example_answer": question["example_answer"]})
+                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": "", "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
 
                     response = self.request_completion(system_prompt, prompt, json_output=True)
                     response = json.loads(response)
