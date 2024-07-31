@@ -25,10 +25,7 @@ setup(
         'textstat',
         'matplotlib',
         'scipy',
-        'spacy',
         'networkx',
-        'transformers',
-        'torch',
         'cryptography==41.0.7',
         'pdf2image',
         'tenacity'
