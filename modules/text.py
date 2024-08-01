@@ -33,16 +33,15 @@ def sanitise_text(text):
 
 
 def load_prompt(input_file_path, replacement_dict={}):
-    
+
     try:
         with open(input_file_path, 'r') as file:
             # Read the file content
             content = file.read()
             
     # If not file exists, treat the input as the content
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         content = input_file_path
-    
     
     # Iterate over the dictionary to replace placeholders
     for placeholder, replacement in replacement_dict.items():
