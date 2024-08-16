@@ -12,14 +12,25 @@ from io import BytesIO
 # Import text functions
 try:
     # Try relative imports for deployment
-    from ....modules.text import *
-    from ....modules.markdown import *
+    from ..modules.text import *
+    from ..modules.markdown import *
 except ImportError:
+<<<<<<< Updated upstream
     # Fallback to absolute imports for local testing
     from modules.text import *
     from modules.markdown import *
 
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
+=======
+    try:
+        # Fallback to absolute imports with project name for structured imports
+        from ParchmentProphet.modules.text import *
+        from ParchmentProphet.modules.markdown import *
+    except ImportError:
+        # Fallback to simple absolute imports for local testing
+        from modules.text import *
+        from modules.markdown import *
+>>>>>>> Stashed changes
 
 class OpenAIHandler:
     
@@ -34,6 +45,12 @@ class OpenAIHandler:
 
         # Initialize the OpenAI
         self.client = OpenAI(api_key=self.api_key)
+
+    def get_max_output_tokens(self):
+        return self.max_output_tokens
+    
+    def get_max_context_tokens(self):
+        return self.max_context_tokens
 
     
     def request_completion(self, system_prompt="", prompt="", model=None, messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False, image=None):
@@ -347,3 +364,4 @@ class OpenAIHandler:
         texts = [text.replace("\n", " ") for text in texts]
         response = self.client.embeddings.create(input=texts, model=model)
         return [data.embedding for data in response.data]
+    
