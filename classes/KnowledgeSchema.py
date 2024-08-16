@@ -26,7 +26,7 @@ except ImportError:
         from modules.markdown import *
         from classes.ai_handler import AIHandler
 
-class KnowledgeGraph:
+class KnowledgeSchema:
 
     def __init__(self, questionnaire):
 
@@ -61,27 +61,6 @@ class KnowledgeGraph:
 
         return all_schemas
            
-    def _retrieve_graph(self):
-
-        # Initialize sets to store unique entities and relationships
-        unique_entities = set()
-        unique_relationships = set()
-
-        # Loop through each item in the data array
-        for item in self.graph_entries:
-            for entity in item["entities"]:
-                unique_entities.add((entity["name"], entity["type"]))
-            for relationship in item["relationships"]:
-                unique_relationships.add((relationship["source"], relationship["target"], relationship["type"]))
-
-        # Convert sets back to lists of dictionaries
-        merged_data = {
-            "entities": [{"name": name, "type": entity_type} for name, entity_type in unique_entities],
-            "relationships": [{"source": source, "target": target, "type": relationship_type} for source, target, relationship_type in unique_relationships]
-        }
-
-        return merged_data
-
     def _create_entity_graph_schema(self):
 
         system_prompt = textwrap.dedent("""
@@ -215,95 +194,6 @@ class KnowledgeGraph:
         # Convert the OrderedDict to a YAML string with proper indentation
         return yaml.dump(graph_format, default_flow_style=False, sort_keys=False, indent=4)
 
-    def _knowledge_scroll(self, schema, chunk, global_context=None):
-
-        output_format = {
-            "entities": [
-                {"name": "Entity1", "type": "type", "properties": {"property1": "value1"}},
-            ],
-            "relationships": [
-                {"source": "Entity1", "target": "Entity2", "type": "type"},
-            ],
-        }
-
-        system_prompt = textwrap.dedent("""
-            You are an AI assistant specialized in extracting structured information from text to populate a graph database. Your task is to analyze provided text and identify relevant entities and relationships based on a given schema. Adhere strictly to the schema and instructions provided in the user message.
-                                        
-            Output your findings in the following JSON format, without any additional commentary or formatting:
-
-            {output_format} 
-        """).strip().format(output_format=json.dumps(output_format, indent=4))
-
-        global_context_string = ""
-        if global_context:
-            global_context_string = f"# Global context\n\n{json.dumps(global_context, indent=4)}\n\n----\n\n"
-
-        user_prompt = textwrap.dedent("""{global_context}                                     
-            # Chunk to review
-                                      
-            {chunk}
-                                      
-            ----
-                                      
-            I have provided you with a chunk of text (above) and a schema for entities and relationships (below). Analyze the text and extract information according to this schema to help populate a graph database.
-
-            # Schema
-
-            {schema}
-
-            # Instructions
-
-            - Carefully read and analyze the provided text.
-            - Identify entities that fall into the specified types.
-            - Determine relationships between the identified entities based on the given relationship types.
-            - Include only entities and relationships that are explicitly mentioned or strongly implied in the text.
-            - If a global context is provided, ensure that you do not duplicate information. Connect new entities and relationships to the existing context.
-            - For longer texts, prioritize the most significant and clearly defined entities and relationships.
-
-            If you encounter any ambiguities or uncertainties, note them briefly in a separate "comments" field in the JSON output.
-
-            Now, analyze the following text and extract entities and relationships according to the schema and instructions.
-        """).strip().format(chunk=chunk['content'], schema=schema, global_context=global_context_string)
-
-        self.graph_entries.append(json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True)))
-
-    def _chunk(self):
-
-        # Load file
-        with open(self.document_path, "r") as file:
-            document_text = file.read()
-
-        # Chunk the document into sections
-        i = 0
-        for chunk in chunk_large_text(document_text, self.token_limit):
-
-            # hash the chunk
-            chunk_id = hashlib.md5(chunk["content"].encode()).hexdigest()
-
-            # Add additional data to the chunk
-            chunk["chunk_id"] = chunk_id
-            chunk["document_id"] = self.document_id
-            chunk["chunk_index"] = i
-            chunk["metadata"] = self.document_metadata
-            i += 1
-            self.document_chunks.append(chunk)
-
-
-
-    def _summarise_document(self):
-        pass
-
-    def _md5_hash(self):
-        # Create an MD5 hash object
-        md5_hash = hashlib.md5()
-        
-        # Open the file in binary mode and read in chunks
-        with open(self.document_path, "rb") as file:
-            for chunk in iter(lambda: file.read(4096), b""):
-                md5_hash.update(chunk)
-        
-        # Return the hexadecimal representation of the hash
-        return md5_hash.hexdigest()
     
     def _create_string_questionnaire(self):
 
