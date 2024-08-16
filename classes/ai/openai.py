@@ -15,13 +15,6 @@ try:
     from ..modules.text import *
     from ..modules.markdown import *
 except ImportError:
-<<<<<<< Updated upstream
-    # Fallback to absolute imports for local testing
-    from modules.text import *
-    from modules.markdown import *
-
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
-=======
     try:
         # Fallback to absolute imports with project name for structured imports
         from ParchmentProphet.modules.text import *
@@ -30,7 +23,6 @@ DEFAULT_MODEL = os.getenv("DEFAULT_MODEL")
         # Fallback to simple absolute imports for local testing
         from modules.text import *
         from modules.markdown import *
->>>>>>> Stashed changes
 
 class OpenAIHandler:
     
