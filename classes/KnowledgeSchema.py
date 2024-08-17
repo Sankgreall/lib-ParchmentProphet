@@ -48,18 +48,18 @@ class KnowledgeSchema:
         self.ai_handler = AIHandler.load()
 
     def process(self):
-
         self._create_entity_graph_schema()
 
         unique_categories = {item["category"] for item in self.questionnaire["questionnaire"]}
         for category in unique_categories:
             self._create_specalised_graph_schema(category)
 
-        all_schemas = {}
-        all_schemas["global"] = self.global_schema
-        all_schemas.update(self.specialised_schemas)
+        all_schemas = {
+            "global": json.loads(self.global_schema),
+            "specialised": {category: json.loads(schema) for category, schema in self.specialised_schemas.items()}
+        }
 
-        return all_schemas
+        return json.dumps(all_schemas, indent=2)
            
     def _create_entity_graph_schema(self):
 
@@ -192,7 +192,7 @@ class KnowledgeSchema:
         }
         
         # Convert the OrderedDict to a YAML string with proper indentation
-        return yaml.dump(graph_format, default_flow_style=False, sort_keys=False, indent=4)
+        return json.dumps(graph_format, indent=2)
 
     
     def _create_string_questionnaire(self):

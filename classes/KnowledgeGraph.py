@@ -28,194 +28,84 @@ except ImportError:
 
 class KnowledgeGraph:
 
-    def __init__(self, questionnaire):
+    def __init__(self, document_path, document_summary, document_metadata, report_scope, questionnaire, data_schema):
 
-        # Load the questionnaire
+        # Set the document path, ID, summary, and metadata
+        self.document_path = document_path
+        self.document_id = self._md5_hash()
+        self.document_summary = document_summary
+        self.document_metadata = document_metadata
+
+        # Add summary to metadata
+        self.document_metadata["document_summary"] = self.document_summary
+        
+        # Load the report scope and questionnaire
+        self.report_scope = report_scope
         self.questionnaire = questionnaire
         self.formatted_questionnaire = self._create_string_questionnaire().strip()
 
         # Create variables to hold Graph schemas
-        self.global_schema = ""
-        self.specialised_schemas = {}
+        self.global_schema = data_schema['global']
+        del data_schema['global']
+        self.specialised_schemas = data_schema
 
         self.graph_entries = []
         self.document_chunks = []
 
         # Set the chunk token limit
         self.token_limit = 4096
+        self.previous_chunk_limit = 1024
 
         # Intiate the AI handler
         self.ai_handler = AIHandler.load()
 
     def process(self):
 
-        self._create_entity_graph_schema()
+        # Chunk the document
+        self._chunk()
 
-        unique_categories = {item["category"] for item in self.questionnaire["questionnaire"]}
-        for category in unique_categories:
-            self._create_specalised_graph_schema(category)
+        for chunk in self.document_chunks:
 
-        all_schemas = {}
-        all_schemas["global"] = self.global_schema
-        all_schemas.update(self.specialised_schemas)
+            # Populate the global schema first
+            graph = self._knowledge_scroll(self.global_schema, chunk, report_scope=self.report_scope)
+            chunk['graph']['entities'].extend(graph['entities'])
+            chunk['graph']['relationships'].extend(graph['relationships'])
 
-        return all_schemas
+        for category, schema in self.specialised_schemas.items():
+
+            questions = self._get_questions_by_category(category)
+
+            # We want to combine the global schema with the specialised schema
+            combined_schema = f"{self.global_schema}\n{schema}"
+
+            previous_chunk = None
+            for chunk in self.document_chunks:
+
+                graph = self._knowledge_scroll(combined_schema, chunk, questions, previous_chunk=previous_chunk, report_scope=self.report_scope)
+                chunk['graph']['entities'].extend(graph['entities'])
+                chunk['graph']['relationships'].extend(graph['relationships'])
+
+                previous_chunk = get_last_n_tokens(chunk['content'], self.previous_chunk_limit)
+
+        return self.document_chunks
            
-    def _retrieve_graph(self):
+    def _retrieve_entity_list(self):
 
-        # Initialize sets to store unique entities and relationships
-        unique_entities = set()
-        unique_relationships = set()
-
-        # Loop through each item in the data array
-        for item in self.graph_entries:
-            for entity in item["entities"]:
-                unique_entities.add((entity["name"], entity["type"]))
-            for relationship in item["relationships"]:
-                unique_relationships.add((relationship["source"], relationship["target"], relationship["type"]))
-
-        # Convert sets back to lists of dictionaries
-        merged_data = {
-            "entities": [{"name": name, "type": entity_type} for name, entity_type in unique_entities],
-            "relationships": [{"source": source, "target": target, "type": relationship_type} for source, target, relationship_type in unique_relationships]
-        }
-
-        return merged_data
-
-    def _create_entity_graph_schema(self):
-
-        system_prompt = textwrap.dedent("""
-            You are an AI assistant specialized in designing graph database schemas. Your task is to create a comprehensive and flexible schema based on a set of questions grouped by categories. Follow these steps carefully.
-
-            1. Identify the type of target entity and create a generic top-level structure. The target entity should be an Organization, Person, Product, Event, Market, Asset, Project, or Location.
-                                        
-            2. Define entities and relationships common across all categories.
-                                        
-            3. Focus on versatility and broad applicability.
-                                        
-            4. Do not address any specific knowledge areas at this stage.
-                                        
-            5. Avoid entity types that contain Personally Identifiable Information ('PII')
-
-            Use the following format for your schema:
-
-            ```
-            {schema_format}
-            ```
-
-            After completing the generic structure, wait for further instructions to create specialized knowledge sub-graphs.
-
-            Your responses must only include your schema, without embellishment, commentary, or markdown styling.
-        """).strip().format(schema_format=self._get_graph_schema_format())
-
-
-        user_prompt = textwrap.dedent("""
-            # Questions
-                                      
-            {questionnaire}
-            
-            ----
-            
-            I have provided you with a list of questions above, where each question is grouped by a category. This category directly represents the type of specialized knowledge required to answer the question.
-
-            Your task is to design a Graph schema based on these questions. The schema will consist of two parts:
-                                      
-            - A generic top-level structure for the target entity, storing information relevant to all specialized knowledge areas defined by the question categories.
-
-            - For each specialized knowledge area, a sub-graph curated to store the information asked by these questions.
-
-            To begin, focus only on the first part: the generic top-level structure. Do not create a schema that addresses any specific knowledge areas. Create only nodes that are common across all categories of questions.
-
-            After you complete this first part, I will ask you to generate the specialized knowledge sub-graphs.
-                                      
-            Provide your response using the format specified in the system message. Prefer entities and relationships over excessive properties.
-        """).strip().format(questionnaire=self.formatted_questionnaire)
-
-        self.global_schema = self.ai_handler.request_completion(system_prompt, user_prompt)
-    
-    def _create_specalised_graph_schema(self, category):
-
-        system_prompt = textwrap.dedent("""
-            You are an AI assistant specialized in designing graph database schemas. Your task is to create a specalised schema designed to answer a niche area, whilst ensuring it remains connected to a pre-defined global schema. Follow these steps carefully.
-
-            1. Review the input questions and develop a specalised schema.
-                                        
-            2. Define entities and relationships common across your questions.
-                                        
-            3. Ensure, where applicable, that the specalised schema is related back to the global schema.
-                                        
-            4. Do not re-define entities or relationships that are already defined in the global schema. Only add new types.
-                                                                                
-            5. Avoid entity types that contain Personally Identifiable Information ('PII')
-
-            Use the following format for your schema:
-
-            ```
-            {schema_format}
-            ```
-
-            Your responses must only include your schema, without embellishment, commentary, or markdown styling.
-        """).strip().format(schema_format=self._get_graph_schema_format())
-
-        user_prompt = textwrap.dedent("""
-            # Global Schema
-                                      
-            {global_schema}
-                                      
-            # Questions
-                                      
-            {questions}
-            
-            ----
-            
-            I have provided you with a list of questions above, where each question is grouped by a category. This category directly represents the type of specialized knowledge required to answer the question.
-
-            Your task is to design a Graph schema based on these questions. The schema will consist of two parts:
-                                      
-            - A generic top-level structure for the target entity, storing information relevant to all specialized knowledge areas defined by the question categories.
-            - For each specialized knowledge area, a sub-graph curated to store the information asked by these questions.
-
-            To begin, focus only on the first part: the generic top-level structure. Do not create a schema that addresses any specific knowledge areas. Create only nodes that are common across all categories of questions.
-
-            After you complete this first part, I will ask you to generate the specialized knowledge sub-graphs.
-                                      
-            Provide your response using the format specified in the system message. Prefer entities and relationships over excessive properties.
-        """).strip().format(global_schema=self.global_schema, questions=self._get_questions_by_category(category))
-
-        self.specialised_schemas[category] = self.ai_handler.request_completion(system_prompt, user_prompt)
-
-
-    def _get_graph_schema_format(self):
-
-        # Define the output format for the entity graph schema using a regular dictionary
-        graph_format = {
-            "entities": [
-                {
-                    "type": "EntityName",
-                    "description": "Brief description of the entity",
-                    "properties": [
-                        {
-                            "name": "property_name",
-                            "type": "data_type",
-                            "required": "true/false"
-                        }
-                    ]
-                }
-            ],
-            "relationships": [
-                {
-                    "type": "relationship_name",
-                    "description": "Brief description of the relationship",
-                    "from": "SourceEntityName",
-                    "to": "TargetEntityName"
-                }
-            ]
-        }
+        entity_list = []
         
-        # Convert the OrderedDict to a YAML string with proper indentation
-        return yaml.dump(graph_format, default_flow_style=False, sort_keys=False, indent=4)
+        for chunk in self.document_chunks:
+            for entity in chunk['graph']['entities']:
+                entity_type = entity.get('type', 'Unknown')
+                entity_name = entity.get('name', 'Unnamed')
+                entity_list.append(f"- {entity_type}: {entity_name}")
+        
+        if not entity_list:
+            return "No identified entities"
+        else:
+            return "\n".join(entity_list)
 
-    def _knowledge_scroll(self, schema, chunk, global_context=None):
+
+    def _knowledge_scroll(self, schema, chunk, questions=None, previous_chunk=None, report_scope=None):
 
         output_format = {
             "entities": [
@@ -226,46 +116,22 @@ class KnowledgeGraph:
             ],
         }
 
+        questions_string = ""
+        if questions:
+            questions_string = f"\n\nIn particular, you must focus your schema on the following questions:\n\n{questions}"
+
         system_prompt = textwrap.dedent("""
-            You are an AI assistant specialized in extracting structured information from text to populate a graph database. Your task is to analyze provided text and identify relevant entities and relationships based on a given schema. Adhere strictly to the schema and instructions provided in the user message.
+            You are an AI assistant specialized in extracting structured information from text to populate a graph database. Your task is to analyze provided text and identify relevant entities and relationships based on a given schema. Adhere strictly to the schema and instructions provided in the user message.{questions_string}
                                         
             Output your findings in the following JSON format, without any additional commentary or formatting:
 
             {output_format} 
-        """).strip().format(output_format=json.dumps(output_format, indent=4))
+        """).strip().format(output_format=json.dumps(output_format, indent=4), questions_string=questions_string)
 
-        global_context_string = ""
-        if global_context:
-            global_context_string = f"# Global context\n\n{json.dumps(global_context, indent=4)}\n\n----\n\n"
+        entities_list = self._retrieve_entity_list()
+        user_prompt = self._get_user_prompt(chunk['content'], schema, entities_list, self.report_scope, self.document_summary, previous_chunk=previous_chunk)
 
-        user_prompt = textwrap.dedent("""{global_context}                                     
-            # Chunk to review
-                                      
-            {chunk}
-                                      
-            ----
-                                      
-            I have provided you with a chunk of text (above) and a schema for entities and relationships (below). Analyze the text and extract information according to this schema to help populate a graph database.
-
-            # Schema
-
-            {schema}
-
-            # Instructions
-
-            - Carefully read and analyze the provided text.
-            - Identify entities that fall into the specified types.
-            - Determine relationships between the identified entities based on the given relationship types.
-            - Include only entities and relationships that are explicitly mentioned or strongly implied in the text.
-            - If a global context is provided, ensure that you do not duplicate information. Connect new entities and relationships to the existing context.
-            - For longer texts, prioritize the most significant and clearly defined entities and relationships.
-
-            If you encounter any ambiguities or uncertainties, note them briefly in a separate "comments" field in the JSON output.
-
-            Now, analyze the following text and extract entities and relationships according to the schema and instructions.
-        """).strip().format(chunk=chunk['content'], schema=schema, global_context=global_context_string)
-
-        self.graph_entries.append(json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True)))
+        return json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
 
     def _chunk(self):
 
@@ -285,13 +151,9 @@ class KnowledgeGraph:
             chunk["document_id"] = self.document_id
             chunk["chunk_index"] = i
             chunk["metadata"] = self.document_metadata
+            chunk["graph"] = {"entities": [], "relationships": []}
             i += 1
             self.document_chunks.append(chunk)
-
-
-
-    def _summarise_document(self):
-        pass
 
     def _md5_hash(self):
         # Create an MD5 hash object
@@ -340,3 +202,75 @@ class KnowledgeGraph:
         bullet_list = "\n".join(f"- {question}" for question in questions)
         
         return bullet_list
+    
+    def _get_user_prompt(self, chunk, schema, entities_list, report_scope, document_summary, previous_chunk=None):
+
+        header = ""
+        if previous_chunk:
+            header = f"## Previous Chunk\n\n{previous_chunk}\n\n----\n\n"
+
+            instruction = textwrap.dedent("""
+                I have provided you with a chunk of text to review, a previous chunk for added context, a graph schema, and a list of existing entities. Your task is to analyze the chunk of text and identify any entities or relationships within it, in strict accordance with the provided schema.
+            """)
+        else:
+            instruction = textwrap.dedent("""
+                I have provided you with a chunk of text to review, a graph schema, and a list of existing entities. Your task is to analyze the chunk of text and respond with a list of entities or relationships, in strict accordance with the provided schema.
+            """)
+
+        return textwrap.dedent("""
+            {header}                              
+            # Chunk to review
+                                        
+            {chunk}
+                                        
+            ----
+
+            # Graph Schema
+
+            {schema}
+
+            ----
+
+            # Existing Graph Entities
+
+            {entities_list}
+
+            ----
+                               
+            # Report Scope
+                               
+            {report_scope}
+                               
+            ## Document summary
+                               
+            {document_summary}
+                               
+            ----
+                                        
+            {instruction}
+
+            # Instructions
+
+            - Carefully read and analyze the text within your chunk.
+                               
+            - Carefully review the report scope and the document summary (from where your chunk was extracted). Ensure that your entities and relationships are aligned with the intended focus of the analysis.
+                               
+            - Identify entities within the chunk that match the entity schema, and clearly state them even if they are already present within the list of existing graph entities.
+
+            - Determine relationships between the identified entities based on the relationship type schema. Use the list of existing graph entities to help you create relationships even if an entity is not explicitly mentioned in the current chunk.
+                               
+            - Do not fail to identify entities that are present in the text. Err on the side of caution and include entities if you are unsure.
+
+            If you encounter any ambiguities or uncertainties, note them briefly in a separate "comments" field in the JSON output.
+
+            Now, analyze your chunk and extract all entities and relationships according to the instructions.
+        """).strip().format(
+                chunk=chunk, 
+                schema=schema, 
+                entities_list=entities_list, 
+                header=header, 
+                instruction=instruction, 
+                report_scope=report_scope, 
+                document_summary=document_summary
+            )
+    
