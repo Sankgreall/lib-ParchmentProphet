@@ -35,7 +35,7 @@ class KnowledgeSchema:
         self.formatted_questionnaire = self._create_string_questionnaire().strip()
 
         # Create variables to hold Graph schemas
-        self.global_schema = ""
+        self.global_schema = {}
         self.specialised_schemas = {}
 
         self.graph_entries = []
@@ -55,8 +55,8 @@ class KnowledgeSchema:
             self._create_specalised_graph_schema(category)
 
         all_schemas = {
-            "global": json.loads(self.global_schema),
-            "specialised": {category: json.loads(schema) for category, schema in self.specialised_schemas.items()}
+            "global": self.global_schema,
+            "specialised": {category: schema for category, schema in self.specialised_schemas.items()}
         }
 
         return all_schemas
