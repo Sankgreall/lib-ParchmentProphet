@@ -56,7 +56,7 @@ class KnowledgeSchema:
 
         all_schemas = {
             "global": self.global_schema,
-            "specialised": {category: schema for category, schema in self.specialised_schemas.items()}
+            **{category: schema for category, schema in self.specialised_schemas.items()}
         }
 
         return all_schemas
