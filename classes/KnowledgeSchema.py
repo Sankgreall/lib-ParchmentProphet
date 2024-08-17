@@ -115,25 +115,21 @@ class KnowledgeSchema:
     def _create_specalised_graph_schema(self, category):
 
         system_prompt = textwrap.dedent("""
-            You are an AI assistant specialized in designing graph database schemas. Your task is to create a specalised schema designed to answer a niche area, whilst ensuring it remains connected to a pre-defined global schema. Follow these steps carefully.
+            You are an AI assistant specialized in designing graph database schemas. Your task is to expand an existing schema to address a specalised subject area, without creating duplication. Follow these steps carefully.
 
             1. Review the input questions and develop a specalised schema.
                                         
-            2. Define entities and relationships common across your questions.
-                                        
-            3. Ensure, where applicable, that the specalised schema is related back to the global schema.
-                                        
-            4. Do not re-define entities or relationships that are already defined in the global schema. Only add new types.
+            2. Define entities and relationships common across your questions, forming relationships back to the root schema where appropiate.
                                                                                 
-            5. Avoid entity types that contain Personally Identifiable Information ('PII')
+            4. Do not create entities that already exist in the global schema.
+                                                                                
+            5. If you have not identified any new entities or relationships, respond with an empty schema.
 
             Generate your output adhering the following JSON template.
 
             ```
             {schema_format}
             ```
-
-            Your responses must only include your schema, without embellishment, commentary, or markdown styling.
         """).strip().format(schema_format=self._get_graph_schema_format())
 
         user_prompt = textwrap.dedent("""
@@ -158,7 +154,7 @@ class KnowledgeSchema:
 
             After you complete this first part, I will ask you to generate the specialized knowledge sub-graphs.
                                       
-            Provide your response using the format specified in the system message. Prefer entities and relationships over excessive properties.
+            Provide your response using the format specified in the system message.
         """).strip().format(global_schema=self.global_schema, questions=self._get_questions_by_category(category))
 
         self.specialised_schemas[category] = json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
