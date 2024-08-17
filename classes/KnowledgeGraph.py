@@ -76,7 +76,10 @@ class KnowledgeGraph:
             questions = self._get_questions_by_category(category)
 
             # We want to combine the global schema with the specialised schema
-            combined_schema = f"{self.global_schema}\n{schema}"
+            combined_schema = self.merge_schemas_flat(self.global_schema, schema)
+            combined_schema = self.convert_object_to_yaml(combined_schema)
+            print(combined_schema)
+            exit()
 
             previous_chunk = None
             for chunk in self.document_chunks:
@@ -88,7 +91,51 @@ class KnowledgeGraph:
                 previous_chunk = get_last_n_tokens(chunk['content'], self.previous_chunk_limit)
 
         return self.document_chunks
-           
+
+    def merge_schemas_flat(self, global_schema: dict, additional_schema: dict) -> dict:
+        merged_schema = {
+            "entities": [],
+            "relationships": []
+        }
+        
+        for schema in (global_schema, additional_schema):
+            merged_schema["entities"].extend(schema.get("entities", []))
+            merged_schema["relationships"].extend(schema.get("relationships", []))
+        
+        return merged_schema
+    
+    def convert_object_to_yaml(self, data: Dict[str, Any]) -> str:
+        """
+        Convert a Python dictionary to a YAML string while preserving key order
+        and adding line breaks between top-level keys.
+
+        Args:
+            data (Dict[str, Any]): The input dictionary to be converted.
+
+        Returns:
+            str: A YAML-formatted string representation of the input dictionary.
+
+        Raises:
+            ValueError: If there's an error during YAML conversion.
+        """
+        try:
+            # Convert the dictionary to a YAML string
+            yaml_string = yaml.dump(data, default_flow_style=False, sort_keys=False)
+            
+            # Add line breaks between top-level keys
+            lines = yaml_string.split('\n')
+            result = []
+            for line in lines:
+                if line and not line.startswith(' '):
+                    if result:  # Don't add a newline before the first key
+                        result.append('')
+                result.append(line)
+            
+            return '\n'.join(result)
+        except yaml.YAMLError as e:
+            # If there's an error during conversion, raise a ValueError with a descriptive message
+            raise ValueError(f"Error converting object to YAML: {str(e)}")
+            
     def _retrieve_entity_list(self):
 
         entity_list = []
