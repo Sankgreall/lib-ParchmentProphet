@@ -115,15 +115,15 @@ class KnowledgeSchema:
     def _create_specalised_graph_schema(self, category):
 
         system_prompt = textwrap.dedent("""
-            You are an AI assistant specialized in designing graph database schemas. Your task is to expand an existing schema to address a specalised subject area, without creating duplication. Follow these steps carefully.
+            You are an AI assistant specialized in designing graph database schemas. Your task is to extend an existing schema to address a specalised subject area, without creating duplication. Follow these steps carefully.
 
-            1. Review the input questions and develop a specalised schema.
+            1. Review the input questions and develop a specalised schema that extends the root schema.
                                         
-            2. Define entities and relationships common across your questions, forming relationships back to the root schema where appropiate.
-                                                                                
-            4. Do not create entities that already exist in the global schema.
-                                                                                
-            5. If you have not identified any new entities or relationships, respond with an empty schema.
+            2. Define entities and relationships common across your questions, but only where they do not already exist in the root schema.
+                                        
+            3. When you define new entities, consider adding relationships back to the root schema where appropiate.
+                                                                                                                                                                
+            5. Respond with an empty schema if you have no new entities or relationships to add.
 
             Generate your output adhering the following JSON template.
 
@@ -133,7 +133,7 @@ class KnowledgeSchema:
         """).strip().format(schema_format=self._get_graph_schema_format())
 
         user_prompt = textwrap.dedent("""
-            # Global Schema
+            # Graph Schema
                                       
             {global_schema}
                                       
@@ -143,16 +143,15 @@ class KnowledgeSchema:
             
             ----
             
-            I have provided you with a list of questions above, where each question is grouped by a category. This category directly represents the type of specialized knowledge required to answer the question.
-
-            Your task is to design a Graph schema based on these questions. The schema will consist of two parts:
+            I have provided you with a list of questions above and an existing graph schema. 
                                       
-            - A generic top-level structure for the target entity, storing information relevant to all specialized knowledge areas defined by the question categories.
-            - For each specialized knowledge area, a sub-graph curated to store the information asked by these questions.
-
-            To begin, focus only on the first part: the generic top-level structure. Do not create a schema that addresses any specific knowledge areas. Create only nodes that are common across all categories of questions.
-
-            After you complete this first part, I will ask you to generate the specialized knowledge sub-graphs.
+            You must extend the root schema to address the specialized knowledge area defined by the questions. 
+                                      
+            - If you feel the schema already addresses these questions, reply with an empty schema.
+                                      
+            - Where you create new entities, relate them back to the global schema where appropriate.
+                                      
+            - Do not duplicate entities or relationships already defined in the root schema. Only add new entities and relationships that are specific to the specialized knowledge area.
                                       
             Provide your response using the format specified in the system message.
         """).strip().format(global_schema=self.global_schema, questions=self._get_questions_by_category(category))
