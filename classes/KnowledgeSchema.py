@@ -76,7 +76,7 @@ class KnowledgeSchema:
                                         
             5. Avoid entity types that contain Personally Identifiable Information ('PII')
 
-            Use the following format for your schema:
+            Generate your output adhering the following JSON template.
 
             ```
             {schema_format}
@@ -127,7 +127,7 @@ class KnowledgeSchema:
                                                                                 
             5. Avoid entity types that contain Personally Identifiable Information ('PII')
 
-            Use the following format for your schema:
+            Generate your output adhering the following JSON template.
 
             ```
             {schema_format}
