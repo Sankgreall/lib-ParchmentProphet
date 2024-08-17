@@ -59,7 +59,7 @@ class KnowledgeSchema:
             "specialised": {category: json.loads(schema) for category, schema in self.specialised_schemas.items()}
         }
 
-        return json.dumps(all_schemas, indent=2)
+        return all_schemas
            
     def _create_entity_graph_schema(self):
 
