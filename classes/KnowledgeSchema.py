@@ -110,7 +110,7 @@ class KnowledgeSchema:
             Provide your response using the format specified in the system message. Prefer entities and relationships over excessive properties.
         """).strip().format(questionnaire=self.formatted_questionnaire)
 
-        self.global_schema = self.ai_handler.request_completion(system_prompt, user_prompt)
+        self.global_schema = json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
     
     def _create_specalised_graph_schema(self, category):
 
@@ -161,7 +161,7 @@ class KnowledgeSchema:
             Provide your response using the format specified in the system message. Prefer entities and relationships over excessive properties.
         """).strip().format(global_schema=self.global_schema, questions=self._get_questions_by_category(category))
 
-        self.specialised_schemas[category] = self.ai_handler.request_completion(system_prompt, user_prompt)
+        self.specialised_schemas[category] = json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
 
 
     def _get_graph_schema_format(self):
