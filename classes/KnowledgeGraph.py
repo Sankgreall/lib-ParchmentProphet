@@ -73,6 +73,10 @@ class KnowledgeGraph:
 
         for category, schema in self.specialised_schemas.items():
 
+            # If both entities and relationships are empty arrays, skip the category
+            if not schema.get("entities") and not schema.get("relationships"):
+                continue
+
             questions = self._get_questions_by_category(category)
 
             # We want to combine the global schema with the specialised schema
