@@ -107,7 +107,7 @@ class KnowledgeSchema:
 
             After you complete this first part, I will ask you to generate the specialized knowledge sub-graphs.
                                       
-            Provide your response using the format specified in the system message. Prefer entities and relationships over excessive properties.
+            Provide your response using the format specified in the system message.
         """).strip().format(questionnaire=self.formatted_questionnaire)
 
         self.global_schema = json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
@@ -172,13 +172,6 @@ class KnowledgeSchema:
                 {
                     "type": "EntityName",
                     "description": "Brief description of the entity",
-                    "properties": [
-                        {
-                            "name": "property_name",
-                            "type": "data_type",
-                            "required": "true/false"
-                        }
-                    ]
                 }
             ],
             "relationships": [
