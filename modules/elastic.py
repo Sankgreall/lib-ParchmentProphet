@@ -24,10 +24,7 @@ def create_es_index(index_name):
 def add_to_es(index_name, document, id=None):
 
     if id:
-        # Create a base64 encoded string from the document name
-        document_id = base64.urlsafe_b64encode(id.encode()).decode()
-    
-        return es.index(index=index_name, id=document_id, body=document)
+        return es.index(index=index_name, id=id, body=document)
     
     else:
         return es.index(index=index_name, body=document)

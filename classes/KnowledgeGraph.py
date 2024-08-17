@@ -78,8 +78,6 @@ class KnowledgeGraph:
             # We want to combine the global schema with the specialised schema
             combined_schema = self.merge_schemas_flat(self.global_schema, schema)
             combined_schema = self.convert_object_to_yaml(combined_schema)
-            print(combined_schema)
-            exit()
 
             previous_chunk = None
             for chunk in self.document_chunks:
