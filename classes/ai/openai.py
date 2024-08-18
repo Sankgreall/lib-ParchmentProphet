@@ -247,7 +247,7 @@ class OpenAIHandler:
     # Take a document exceeding max token limit and recursively summarise it
     def recursive_summary(self, system_prompt, data, temperature=0.2, model=None):
 
-        chunk_size = int(os.getenv("MAX_CONTEXT_TOKENS")) - (int(os.getenv("MAX_OUTPUT_TOKENS")) * 2) # One for output, one for previous summary
+        chunk_size = self.max_context_tokens - (self.max_output_tokens * 2) # One for output, one for previous summary
         first_iteration = True
 
         for chunk in chunk_large_text(data, chunk_size):
@@ -256,7 +256,7 @@ class OpenAIHandler:
             if first_iteration:
                 messages = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": chunk}
+                    {"role": "user", "content": chunk['content']}
                 ]
                 first_iteration = False
 
@@ -264,7 +264,7 @@ class OpenAIHandler:
                 messages = [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Document summary so far\n----\n{output}"},
-                    {"role": "user", "content": f"Next document chunk\n----\n{chunk}"}
+                    {"role": "user", "content": f"Next document chunk\n----\n{chunk['content']}"}
                 ]
 
             output = self.request_completion(messages=messages, temperature=temperature, model=model if model else self.default_model)

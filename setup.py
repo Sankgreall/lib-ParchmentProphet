@@ -17,6 +17,8 @@ setup(
         'bs4',
         'Elasticsearch',
         'openpyxl',
-        'xlrd'
+        'xlrd',
+        'neo4j',
+        'transformers'
     ],
 )
