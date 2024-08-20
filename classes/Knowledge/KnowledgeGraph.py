@@ -84,10 +84,21 @@ class KnowledgeGraph:
             if not self._document_exists(document['document_id']):
                 self._process_single_document_claims(document)
 
-    def chunk_documents(self):
+    def chunk_document(self, document):
 
-        self._preprocess_documents()
-        return self.documents
+        if 'document_id' not in document:
+            document['document_id'] = self._md5_hash(document['markdown_path'])
+
+        if 'document_summary' not in document:
+            document['document_summary'] = self._generate_document_summary(document)
+
+        if 'chunks' not in document:
+            document['chunks'] = self._chunk_document(document)
+
+        if 'document_metadata' not in document:
+            document['document_metadata'] = {"title": "UNKNOWN"}
+
+        return document
 
     def _document_exists(self,document_id, index_name=DOCUMENTS_INDEX):
         query = {

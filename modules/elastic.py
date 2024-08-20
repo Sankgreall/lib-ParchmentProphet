@@ -37,3 +37,28 @@ def search_es(index_name, query):
 
 def update_document(index_name, document_id, updated_fields):
     es.update(index=index_name, id=document_id, body={"doc": updated_fields})
+
+def get_document_by_id(index_name, document_id):
+    """
+    Retrieve a document by its _id from the specified index.
+    
+    :param index_name: The name of the index to search in
+    :param document_id: The _id of the document to retrieve
+    :return: A dictionary containing the document if found, or None if not found
+    """
+    query = {
+        "query": {
+            "ids": {
+                "values": [document_id]
+            }
+        }
+    }
+    
+    result = search_es(index_name, query)
+    
+    if result["hits"]["total"]["value"] > 0:
+        document = result["hits"]["hits"][0]["_source"]
+        document["_id"] = result["hits"]["hits"][0]["_id"]
+        return document
+    
+    return None
