@@ -57,6 +57,7 @@ class KnowledgeGraph:
 
         # Initialize global_graph from existing project data
         self.global_graph = self._fetch_existing_graph()
+        self.graph_newer = False
         self.global_claims = []
 
         self.entities_string = self.get_entity_list()
@@ -88,8 +89,12 @@ class KnowledgeGraph:
 
         return self.global_claims
     
-    def return_documents(self):
-        return self.documents
+    def return_unique_documents(self):
+        unique_documents = []
+        for document in self.documents:
+            if not self._document_exists(document['document_id']):
+                unique_documents.append(document)
+        return unique_documents
 
     def chunk_document(self, document):
 
@@ -115,8 +120,8 @@ class KnowledgeGraph:
             "query": {
                 "bool": {
                     "must": [
-                        {"term": {"document_id": document_id}},
-                        {"term": {"project_id": self.project_id}}
+                        {"term": {"document_id.keyword": document_id}},
+                        {"term": {"project_id.keyword": self.project_id}}
                     ]
                 }
             },
@@ -184,7 +189,10 @@ class KnowledgeGraph:
         }
     
     def submit_to_neo4j(self):
-        add_to_neo4j(self.global_graph, self.project_id)
+        if self.graph_updated:
+            add_to_neo4j(self.global_graph, self.project_id)
+
+        # Otherwise, there's nothing to update
 
     def process_embeddings(self):
         process_embeddings(graph_name="myGraph")
@@ -400,6 +408,7 @@ class KnowledgeGraph:
         return chunks
     
     def update_global_graph(self, new_graph: Dict[str, List], chunk_id: str):
+
         # Update entities
         for new_entity in new_graph["entities"]:
             existing_entity = next((e for e in self.global_graph["entities"] if e["name"] == new_entity["name"] and e["type"] == new_entity["type"]), None)
@@ -412,6 +421,8 @@ class KnowledgeGraph:
                 new_entity["description"] = [new_entity["description"]]
                 new_entity["references"] = [chunk_id]
                 self.global_graph["entities"].append(new_entity)
+                if self.graph_updated is False:
+                    self.graph_updated = True  # Set flag when new relationship is added
 
         # Update relationships
         for new_rel in new_graph["relationships"]:
@@ -425,6 +436,8 @@ class KnowledgeGraph:
                 new_rel["description"] = [new_rel["description"]]
                 new_rel["references"] = [chunk_id]
                 self.global_graph["relationships"].append(new_rel)
+                if self.graph_updated is False:
+                    self.graph_updated = True  # Set flag when new relationship is added
 
     def get_entity_list(self):
         entities = self.global_graph.get("entities", [])
