@@ -86,7 +86,7 @@ class KnowledgeGraph:
             if not self._document_exists(document['document_id']):
                 self._process_single_document_claims(document)
 
-        return True
+        return self.global_claims
     
     def return_documents(self):
         return self.documents
