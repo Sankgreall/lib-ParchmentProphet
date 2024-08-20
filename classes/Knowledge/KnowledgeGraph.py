@@ -75,7 +75,7 @@ class KnowledgeGraph:
         self._merge_descriptions()
 
         # Return chunked documents
-        return self.documents
+        return True
     
     def process_claims(self):
 
@@ -83,6 +83,11 @@ class KnowledgeGraph:
         for document in self.documents:
             if not self._document_exists(document['document_id']):
                 self._process_single_document_claims(document)
+
+        return True
+    
+    def return_documents(self):
+        return self.documents
 
     def chunk_document(self, document):
 
