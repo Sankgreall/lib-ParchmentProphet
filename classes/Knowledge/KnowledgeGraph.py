@@ -57,7 +57,7 @@ class KnowledgeGraph:
 
         # Initialize global_graph from existing project data
         self.global_graph = self._fetch_existing_graph()
-        self.global_claims = {}
+        self.global_claims = []
 
         self.entities_string = self.get_entity_list()
 
@@ -92,6 +92,9 @@ class KnowledgeGraph:
         return self.documents
 
     def chunk_document(self, document):
+
+        if 'project_id' not in document:
+            document['project_id'] = self.project_id
 
         if 'document_id' not in document:
             document['document_id'] = self._md5_hash(document['markdown_path'])
@@ -133,10 +136,6 @@ class KnowledgeGraph:
         # For each category
         for category in unique_categories:
 
-            # Ensure global claims has the category key
-            if category not in self.global_claims:
-                self.global_claims[category] = []
-
             # Get questions for category
             questions = self._get_questions_by_category(category)
 
@@ -146,11 +145,13 @@ class KnowledgeGraph:
 
                 # Add claims to global claims
                 for claim in claims["claims"]:
+                    claim['project_id'] = self.project_id
+                    claim['category'] = category
                     claim["document_id"] = document['document_id']
                     claim["chunk_id"] = chunk["chunk_id"]
                     claim["document_metadata"] = document['document_metadata']
                     claim["document_summary"] = document['document_summary']
-                    self.global_claims[category].append(claim)
+                    self.global_claims.append(claim)
     
     def _fetch_existing_graph(self):
         # Fetch existing graph data from Neo4j for the current project_id
@@ -191,6 +192,9 @@ class KnowledgeGraph:
     def _preprocess_documents(self):
 
         for document in self.documents:
+            if 'project_id' not in document:
+                document['project_id'] = self.project_id
+
             if 'document_id' not in document:
                 document['document_id'] = self._md5_hash(document['markdown_path'])
 
@@ -384,6 +388,7 @@ class KnowledgeGraph:
         for i, chunk in enumerate(chunk_large_text(document_text, self.token_limit)):
             chunk_id = hashlib.md5(chunk["content"].encode()).hexdigest()
             chunks.append({
+                "project_id": self.project_id,
                 "chunk_id": chunk_id,
                 "document_id": document['document_id'],
                 "document_summary": document['document_summary'],
