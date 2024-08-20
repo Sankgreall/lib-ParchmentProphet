@@ -57,7 +57,7 @@ class KnowledgeGraph:
 
         # Initialize global_graph from existing project data
         self.global_graph = self._fetch_existing_graph()
-        self.graph_newer = False
+        self.graph_modified = False
         self.global_claims = []
 
         self.entities_string = self.get_entity_list()
@@ -189,7 +189,7 @@ class KnowledgeGraph:
         }
     
     def submit_to_neo4j(self):
-        if self.graph_updated:
+        if self.graph_modified:
             add_to_neo4j(self.global_graph, self.project_id)
 
         # Otherwise, there's nothing to update
@@ -421,8 +421,8 @@ class KnowledgeGraph:
                 new_entity["description"] = [new_entity["description"]]
                 new_entity["references"] = [chunk_id]
                 self.global_graph["entities"].append(new_entity)
-                if self.graph_updated is False:
-                    self.graph_updated = True  # Set flag when new relationship is added
+                if self.graph_modified is False:
+                    self.graph_modified = True  # Set flag when new relationship is added
 
         # Update relationships
         for new_rel in new_graph["relationships"]:
@@ -436,8 +436,8 @@ class KnowledgeGraph:
                 new_rel["description"] = [new_rel["description"]]
                 new_rel["references"] = [chunk_id]
                 self.global_graph["relationships"].append(new_rel)
-                if self.graph_updated is False:
-                    self.graph_updated = True  # Set flag when new relationship is added
+                if self.graph_modified is False:
+                    self.graph_modified = True  # Set flag when new relationship is added
 
     def get_entity_list(self):
         entities = self.global_graph.get("entities", [])
