@@ -184,7 +184,7 @@ class KnowledgeGraph:
         }
     
     def submit_to_neo4j(self):
-        add_to_neo4j(self.global_graph)
+        add_to_neo4j(self.global_graph, self.project_id)
 
     def process_embeddings(self):
         process_embeddings(graph_name="myGraph")
