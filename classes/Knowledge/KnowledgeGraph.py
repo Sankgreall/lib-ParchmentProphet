@@ -14,38 +14,50 @@ try:
     from ....modules.text import *
     from ....modules.markdown import *
     from ....ai_handler import AIHandler
+    from ....moduleselastic import *
 except ImportError:
     try:
         # Fallback to absolute imports with project name for structured imports
         from ParchmentProphet.modules.text import *
         from ParchmentProphet.modules.markdown import *
         from ParchmentProphet.classes.ai_handler import AIHandler
+        from ParchmentProphet.modules.elastic import *
     except ImportError:
         # Fallback to simple absolute imports for local testing
         from modules.text import *
         from modules.markdown import *
         from classes.ai_handler import AIHandler
         from modules.neo4j import *
+        from modules.elastic import *
 
 from .prompts.graph import graph_system_prompt, graph_user_prompt
 from .prompts.document_summary import document_summary_system_prompt
 from .prompts.merge_descriptions import merge_descriptions_entity_system_prompt, merge_descriptions_entity_user_prompt, merge_descriptions_relationship_system_prompt, merge_descriptions_relationship_user_prompt
 from .prompts.deduplicate import deduplicate_system_entity_prompt, deduplicate_user_entity_prompt
+from .prompts.claim import claim_system_prompt, claim_user_prompt
+
+# Index in Elastic where documents are stored
+DOCUMENTS_INDEX = "prod-documents"
 
 class KnowledgeGraph:
 
-    def __init__(self, documents, report_scope, questionnaire, data_schema):
-        
+    def __init__(self, project_id, documents, report_scope, questionnaire, persona):
+        self.project_id = project_id
         self.documents = documents
         self.report_scope = report_scope
         self.questionnaire = questionnaire
-        self.schema = data_schema
+        self.persona = persona
 
-        self.global_graph = {"entities": [], "relationships": []}
         self.token_limit = 600
         self.previous_chunk_limit = self.token_limit * 0.5
 
         self.ai_handler = AIHandler.load()
+
+        # Initialize global_graph from existing project data
+        self.global_graph = self._fetch_existing_graph()
+        self.global_claims = {}
+
+        self.entities_string = self.get_entity_list()
 
     def process(self):
         # Preprocess documents
@@ -53,7 +65,8 @@ class KnowledgeGraph:
 
         # Process each document
         for document in self.documents:
-            self._process_single_document(document)
+            if not self._document_exists(document['document_id']):
+                self._process_single_document(document)
 
         # Deduplicate entities
         self._deduplicate_entities()
@@ -61,31 +74,132 @@ class KnowledgeGraph:
         # Merge entity and relationship descriptions
         self._merge_descriptions()
 
-        # Add the global graph to Neo4j
-        add_to_neo4j(self.global_graph)
-
-        # Compute emebeddings for entities
-        process_embeddings(graph_name="myGraph")
-
         # Return chunked documents
         return self.documents
     
-    def _preprocess_documents(self):
+    def process_claims(self):
+
+        # Process each document
         for document in self.documents:
-            document['document_id'] = self._md5_hash(document['markdown_path'])
-            document['document_summary'] = self._generate_document_summary(document)
-            document['chunks'] = self._chunk_document(document)
+            if not self._document_exists(document['document_id']):
+                self._process_single_document_claims(document)
+
+    def chunk_documents(self):
+
+        self._preprocess_documents()
+        return self.documents
+
+    def _document_exists(self,document_id, index_name=DOCUMENTS_INDEX):
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"document_id": document_id}},
+                        {"term": {"project_id": self.project_id}}
+                    ]
+                }
+            },
+            "size": 0  # We don't need to retrieve the document, just check if it exists
+        }
+        
+        result = search_es(index_name, query)
+        
+        # If the total number of hits is greater than 0, the document exists
+        return result['hits']['total']['value'] > 0
+
+    def _process_single_document_claims(self, document):
+
+        # Get question categories
+        unique_categories = {item["category"] for item in self.questionnaire["questionnaire"]}
+
+        # For each category
+        for category in unique_categories:
+
+            # Ensure global claims has the category key
+            if category not in self.global_claims:
+                self.global_claims[category] = []
+
+            # Get questions for category
+            questions = self._get_questions_by_category(category)
+
+            existing_claims = "None"
+            # Scroll through each chunk
+            for chunk in document['chunks']:
+                claims = self._claim_scroll(chunk, self.entities_string, questions, document['document_summary'], existing_claims=existing_claims)
+
+                # Add claims to global claims
+                for claim in claims["claims"]:
+                    claim["document_id"] = document['document_id']
+                    claim["chunk_id"] = chunk["chunk_id"]
+                    claim["document_metadata"] = document['document_metadata']
+                    claim["document_summary"] = document['document_summary']
+                    self.global_claims[category].append(claim)
+
+                # Get existing claims for this category
+                existing_claims = json.dumps(self.global_claims[category], indent=4)
+    
+    def _fetch_existing_graph(self):
+        # Fetch existing graph data from Neo4j for the current project_id
+        neo4j_result = fetch_project_graph(self.project_id)
+        
+        entities = {}
+        relationships = []
+
+        for record in neo4j_result:
+            source = record['e']
+            if source['name'] not in entities:
+                entities[source['name']] = {
+                    "name": source['name'],
+                    "type": source['type'],
+                    "description": source['description'],
+                    "references": source['references']
+                }
+
+            if record['r'] is not None and record['target'] is not None:
+                relationships.append({
+                    "source": source['name'],
+                    "target": record['target']['name'],
+                    "description": record['r']['description'],
+                    "references": record['r']['references']
+                })
+
+        return {
+            "entities": list(entities.values()),
+            "relationships": relationships
+        }
+    
+    def submit_to_neo4j(self):
+        add_to_neo4j(self.global_graph)
+
+    def process_embeddings(self):
+        process_embeddings(graph_name="myGraph")
+    
+    def _preprocess_documents(self):
+
+        for document in self.documents:
+            if 'document_id' not in document:
+                document['document_id'] = self._md5_hash(document['markdown_path'])
+
+            if 'document_summary' not in document:
+                document['document_summary'] = self._generate_document_summary(document)
+
+            if 'chunks' not in document:
+                document['chunks'] = self._chunk_document(document)
+
+            if 'document_metadata' not in document:
+                document['document_metadata'] = {"title": "UNKNOWN"}
 
     def _process_single_document(self, document):
 
         previous_chunk = None
-        yml_schema = self._retrieve_schema_as_yml()
 
         for chunk in document['chunks']:
             existing_entities = self.get_entity_list()
-            local_graph = self._knowledge_scroll(yml_schema, chunk, existing_entities, self.report_scope, document['document_summary'], previous_chunk)
+            local_graph = self._knowledge_scroll(chunk, existing_entities, self.persona, document['document_summary'], previous_chunk)
             self.update_global_graph(local_graph.copy(), chunk['chunk_id'])
-            previous_chunk = chunk['content']
+
+            # Get last tokens from previous chunk
+            previous_chunk = get_last_n_tokens(chunk['content'], self.previous_chunk_limit)
 
     def _deduplicate_entities(self):
 
@@ -243,10 +357,9 @@ class KnowledgeGraph:
         with open(document['markdown_path'], "r") as file:
             document_text = file.read()
 
-        system_prompt = textwrap.dedent(document_summary_system_prompt).strip().format(document_metadata=json.dumps(document['document_metadata'], indent=4))
+        system_prompt = textwrap.dedent(document_summary_system_prompt).strip().replace("{metadata}", json.dumps(document['document_metadata'], indent=4)).replace("{scope}", self.report_scope)
 
-        summary = self.ai_handler.recursive_summary(system_prompt, document_text)
-        print(f"Document Summary: {summary}")
+        summary = json.loads(self.ai_handler.recursive_summary(system_prompt, document_text, json_output=True))
         return summary
 
     def _chunk_document(self, document):
@@ -293,25 +406,6 @@ class KnowledgeGraph:
                 new_rel["description"] = [new_rel["description"]]
                 new_rel["references"] = [chunk_id]
                 self.global_graph["relationships"].append(new_rel)
-        
-    def _retrieve_schema_as_yml(self):
-        entities = []
-        for category in self.schema.values():
-            if 'entities' in category:
-                entities.extend(category['entities'])
-        
-        # Remove duplicate entities based on 'type' and 'description'
-        unique_entities = []
-        seen = set()
-        for entity in entities:
-            entity_tuple = (entity['type'], entity['description'])
-            if entity_tuple not in seen:
-                seen.add(entity_tuple)
-                unique_entities.append(entity)
-        
-        # Convert to YAML
-        yaml_string = yaml.dump(unique_entities, sort_keys=False, default_flow_style=False)
-        return yaml_string
 
     def get_entity_list(self):
         entities = self.global_graph.get("entities", [])
@@ -326,7 +420,7 @@ class KnowledgeGraph:
         return "\n".join(entity_list)
 
 
-    def _knowledge_scroll(self, schema, chunk, existing_entities=None, report_scope=None, document_summary=None, previous_chunk=None):
+    def _knowledge_scroll(self, chunk, existing_entities=None, persona=None, document_summary=None, previous_chunk=None):
         output_format = {
             "entities": [
                 {"name": "EntityName", "type": "EntityType", "description": "Comprehensive description of the entity's attributes and activities"},
@@ -340,14 +434,42 @@ class KnowledgeGraph:
 
         user_prompt = self._get_user_prompt(
             chunk['content'], 
-            schema, 
             existing_entities, 
-            report_scope, 
-            document_summary, 
+            persona, 
+            json.dumps(document_summary, indent=4), 
             previous_chunk=previous_chunk
         )
 
         return json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
+    
+    def _get_questions_by_category(self, target_category):
+        # Filter questions based on the category
+        questions = [
+            item["question"]
+            for item in self.questionnaire["questionnaire"]
+            if item["category"] == target_category
+        ]
+        
+        # Format the questions as a bullet list
+        bullet_list = "\n".join(f"- {question}" for question in questions)
+        
+        return bullet_list
+    
+    def _claim_scroll(self, chunk, entities, questions, document_summary=None):
+
+        system_prompt = textwrap.dedent(claim_system_prompt).strip()
+
+        user_prompt = textwrap.dedent(claim_user_prompt).strip().format(
+            metadata=json.dumps(document_summary, indent=4),
+            questions=questions,
+            entities=entities,
+            text=chunk['content']
+        )
+
+        try:
+            return json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
+        except json.decoder.JSONDecodeError:
+            return {"claims": []}
     
     def _md5_hash(self, file_path):
         md5_hash = hashlib.md5()
@@ -356,8 +478,7 @@ class KnowledgeGraph:
                 md5_hash.update(chunk)
         return md5_hash.hexdigest()
     
-    
-    def _get_user_prompt(self, chunk, schema, entities_list, report_scope, document_summary, previous_chunk=None):
+    def _get_user_prompt(self, chunk, entities_list, persona, document_summary, previous_chunk=None):
 
         header = ""
         if previous_chunk:
@@ -376,7 +497,7 @@ class KnowledgeGraph:
                 entities_list=entities_list, 
                 header=header, 
                 instruction=instruction, 
-                report_scope=report_scope, 
+                persona=persona, 
                 document_summary=document_summary
             )
     

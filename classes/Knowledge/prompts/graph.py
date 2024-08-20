@@ -21,9 +21,9 @@ graph_user_prompt = """
 
     ----
                         
-    # Report Scope
+    # Report expertise
                         
-    {report_scope}
+    {persona}
                         
     ## Document summary
                         
