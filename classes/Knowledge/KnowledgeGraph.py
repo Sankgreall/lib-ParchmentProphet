@@ -140,10 +140,9 @@ class KnowledgeGraph:
             # Get questions for category
             questions = self._get_questions_by_category(category)
 
-            existing_claims = "None"
             # Scroll through each chunk
             for chunk in document['chunks']:
-                claims = self._claim_scroll(chunk, self.entities_string, questions, document['document_summary'], existing_claims=existing_claims)
+                claims = self._claim_scroll(chunk, self.entities_string, questions, document['document_summary'])
 
                 # Add claims to global claims
                 for claim in claims["claims"]:
@@ -152,9 +151,6 @@ class KnowledgeGraph:
                     claim["document_metadata"] = document['document_metadata']
                     claim["document_summary"] = document['document_summary']
                     self.global_claims[category].append(claim)
-
-                # Get existing claims for this category
-                existing_claims = json.dumps(self.global_claims[category], indent=4)
     
     def _fetch_existing_graph(self):
         # Fetch existing graph data from Neo4j for the current project_id
