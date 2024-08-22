@@ -26,12 +26,14 @@ try:
     from ....modules.text import *
     from ....modules.markdown import *
     from ....ai_handler import AIHandler
+    from ....modules.neo4j import *
 except ImportError:
     try:
         # Fallback to absolute imports with project name for structured imports
         from ParchmentProphet.modules.text import *
         from ParchmentProphet.modules.markdown import *
         from ParchmentProphet.classes.ai_handler import AIHandler
+        from ParchmentProphet.modules.neo4j import *
     except ImportError:
         # Fallback to simple absolute imports for local testing
         from modules.text import *
