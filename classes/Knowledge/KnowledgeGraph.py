@@ -292,6 +292,9 @@ class KnowledgeGraph:
                 best_entity['references'].extend(entity['references'])
                 best_entity['references'] = list(set(best_entity['references']))
                 # Update the descriptions array, ensuring no duplicates
+                # If the description is a string, convert it to a list
+                if isinstance(best_entity['description'], str):
+                    best_entity['description'] = [best_entity['description']]
                 best_entity['description'].extend(entity['description'])
                 best_entity['description'] = list(set(best_entity['description']))
 
@@ -312,6 +315,9 @@ class KnowledgeGraph:
             key = (relationship['source'], relationship['target'])
             if key in relationship_dict:
                 # Merge descriptions if duplicate relationship found
+                # If the description is a string, convert it to a list
+                if isinstance(relationship_dict[key]['description'], str):
+                    relationship_dict[key]['description'] = [relationship_dict[key]['description']]
                 relationship_dict[key]['description'].extend(relationship['description'])
                 relationship_dict[key]['description'] = list(set(relationship_dict[key]['description']))
             else:
