@@ -17,9 +17,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 # Disable tokenizer parallelism warning
 transformers.utils.logging.set_verbosity_error()
 
-# Import the Neo4j functions from your existing document
-from modules.neo4j import *
-
 # Import text functions
 try:
     # Try relative imports for deployment
