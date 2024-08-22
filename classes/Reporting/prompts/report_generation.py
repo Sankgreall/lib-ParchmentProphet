@@ -35,7 +35,7 @@ report_generation_system_prompt = """
     IMPORTANT: Do not invent, hallucinate, or fabriacate information.
 """
 
-report_generation_user_prompt = """
+report_generation_first_user_prompt = """
     # Questionnaire
 
     {answers}
@@ -53,4 +53,18 @@ report_generation_user_prompt = """
     You have been provided with a completed questionnaire, a report scope, and an example of a well-written report section.
 
     Your section brief is as follows: {section_brief}
+"""
+
+report_generation_subsequent_user_prompt = """
+    # Example
+
+    {example}
+
+    ----
+
+    Thank you for completing the previous report section. I now instruct you to draft the next section of the report.
+    
+    Your new section brief is as follows: {section_brief}
+
+    You already have the report scope and answers, and I have provided an example above. Proceed with drafting this new section.
 """

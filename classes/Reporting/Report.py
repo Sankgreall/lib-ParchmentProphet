@@ -36,7 +36,7 @@ except ImportError:
         from modules.elastic import *
         from classes.Knowledge.KnowledgeQuery import KnowledgeQuery
 
-from .prompts.report_generation import report_generation_system_prompt, report_generation_user_prompt
+from .prompts.report_generation import report_generation_system_prompt, report_generation_first_user_prompt, report_generation_subsequent_user_prompt
 
 class Report:
 
@@ -71,13 +71,70 @@ class Report:
         if not self.check_if_answers_exist():
             self.generate_answers()
 
+        system_prompt = textwrap.dedent(report_generation_system_prompt).strip().format(persona=report_persona)
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": textwrap.dedent(report_generation_first_user_prompt).strip().format(
+                answers=self.format_answers(self.answers),
+                report_scope=report_scope,
+                example=self.report_template["sections"][0]["example"],
+                section_brief=self.report_template["sections"][0]["prompt"]
+            )}
+        ]
+
         drafted_sections = []
-        for section in self.report_template["sections"]:
-            drafted_sections.append(self.report_section(section, report_persona, report_scope))
+        delayed_section = None
+        delayed_section_index = None
+
+        for i, section in enumerate(self.report_template["sections"]):
+            if section.get("generate_last", False):
+                delayed_section = section
+                delayed_section_index = i
+                continue
+
+            # Generate the section
+            response = self.ai.request_completion(messages=messages)
+            
+            # Add the generated section to drafted_sections
+            drafted_sections.append({
+                "title": section["title"],
+                "content": response
+            })
+
+            # Add the AI's response to the messages
+            messages.append({"role": "assistant", "content": response})
+
+            # If there's a next section, add the subsequent user prompt
+            if i < len(self.report_template["sections"]) - 1:
+                next_section = self.report_template["sections"][i + 1]
+                messages.append({
+                    "role": "user", 
+                    "content": textwrap.dedent(report_generation_subsequent_user_prompt).strip().format(
+                        example=next_section["example"],
+                        section_brief=next_section["prompt"]
+                    )
+                })
+
+        # Generate the delayed section (if any)
+        if delayed_section:
+            messages.append({
+                "role": "user",
+                "content": textwrap.dedent(report_generation_subsequent_user_prompt).strip().format(
+                    example=delayed_section["example"],
+                    section_brief=delayed_section["prompt"]
+                )
+            })
+            response = self.ai.request_completion(messages=messages)
+            
+            # Insert the delayed section at its original position
+            drafted_sections.insert(delayed_section_index, {
+                "title": delayed_section["title"],
+                "content": response
+            })
 
         return drafted_sections
-
-
+    
     def get_project(self):
         query = {
             "query": {
@@ -170,7 +227,7 @@ class Report:
 
     def report_section(self, section, persona, scope):
         system_prompt = textwrap.dedent(report_generation_system_prompt).strip().format(persona=persona)
-        user_prompt = textwrap.dedent(report_generation_user_prompt).strip().format(
+        user_prompt = textwrap.dedent(report_generation_first_user_prompt).strip().format(
             answers=self.format_answers(self.answers), 
             report_scope=scope, 
             example=section["example"], 
