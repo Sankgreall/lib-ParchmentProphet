@@ -26,6 +26,7 @@ try:
     from ....modules.text import *
     from ....modules.markdown import *
     from ....ai_handler import AIHandler
+    from ....modules.elastic import *
     from ....modules.neo4j import *
 except ImportError:
     try:
@@ -33,6 +34,7 @@ except ImportError:
         from ParchmentProphet.modules.text import *
         from ParchmentProphet.modules.markdown import *
         from ParchmentProphet.classes.ai_handler import AIHandler
+        from ParchmentProphet.modules.elastic import *
         from ParchmentProphet.modules.neo4j import *
     except ImportError:
         # Fallback to simple absolute imports for local testing
@@ -40,6 +42,8 @@ except ImportError:
         from modules.markdown import *
         from classes.ai_handler import AIHandler
         from modules.neo4j import *
+        from modules.elastic import *
+
 
 from .prompts.claim import answer_claim_system_prompt, answer_claim_user_prompt
 
