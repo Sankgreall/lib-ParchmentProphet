@@ -110,6 +110,13 @@ def update_entity(entity_name, updated_fields, project_id):
             SET e += $updated_fields
         """, name=entity_name, updated_fields=updated_fields, project_id=project_id)
 
+def delete_project_data_from_neo4j(project_id):
+    with driver.session() as session:
+        session.run("""
+            MATCH (n {project_id: $project_id})
+            DETACH DELETE n
+        """, project_id=project_id)
+
 #############################################################
 # EMEDDING FUNCTIONS
 #############################################################
