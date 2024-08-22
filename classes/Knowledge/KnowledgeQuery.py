@@ -86,18 +86,18 @@ class KnowledgeQuery:
             exclude_entities=exclude_entities
         )
         return results
-    
+        
     def answer_questions_from_claims(self, questionnaire, claims):
-
         for question in questionnaire['questionnaire']:
             claims_by_document_id = {}
 
-            # Retrieve all claims that contain the category value
-            for relevant_claim in claims[question['category']]:
-                document_id = relevant_claim['document_id']
-                if document_id not in claims_by_document_id:
-                    claims_by_document_id[document_id] = []
-                claims_by_document_id[document_id].append(relevant_claim)
+            # Retrieve all claims that match the category
+            for claim in claims:
+                if claim['category'] == question['category']:
+                    document_id = claim['document_id']
+                    if document_id not in claims_by_document_id:
+                        claims_by_document_id[document_id] = []
+                    claims_by_document_id[document_id].append(claim)
 
             # Now we construct the overall string to inject into prompt
             claims_string = ""
@@ -119,6 +119,8 @@ class KnowledgeQuery:
                     claims_string += "Supporting Quotes:\n"
                     for quote in claim['quotes']:
                         claims_string += f"   \"{quote}\"\n"
+                    claims_string += f"Relevance: {claim['relevance']}\n"
+                    claims_string += f"Relevance Explanation: {claim['relevance_explanation']}\n"
                     claims_string += "\n"  # Add a blank line between claims
 
             system_prompt = textwrap.dedent(answer_claim_system_prompt).strip()
@@ -129,5 +131,3 @@ class KnowledgeQuery:
             self.completed_questionnaire[question['question']] = answer
 
         return self.completed_questionnaire
-
-        pass
