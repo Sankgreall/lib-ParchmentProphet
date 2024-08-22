@@ -7,6 +7,7 @@ report_generation_system_prompt = """
 
     - A completed questionnaire containing questions relevant to your section
     - A report scope
+    - A section brief, explaining what you must draft
     - An example of a well-written report section
 
     2. Task overview
@@ -19,7 +20,9 @@ report_generation_system_prompt = """
 
     Step Two: Review the Report Scope to ensure your output is consistent with the overall intention of the report.
 
-    Step Three: Examine the provided example, and ensure your output matches the quality, style, and brevity. You must model your output from this example, so very carefully review it to understand it's intent and impact within the report as a whole.
+    Step Three: Review the section brief to understand the specific requirements of your output.
+
+    Step Four: Examine the provided example, and ensure your output matches the quality, style, and brevity. You must model your output from this example, so very carefully review it to understand it's intent and impact within the report as a whole.
 
     3. Guidelines
 
@@ -49,5 +52,5 @@ report_generation_user_prompt = """
 
     You have been provided with a completed questionnaire, a report scope, and an example of a well-written report section.
 
-    Your task is to write your own report section based on the questionnaire and the report scope. Your output should be consistent with the example provided and should be written in the same style and format.
+    Your section brief is as follows: {section_brief}
 """
