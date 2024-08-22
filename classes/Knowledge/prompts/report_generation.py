@@ -38,7 +38,7 @@ report_generation_system_prompt = """
 report_generation_user_prompt = """
     # Questionnaire
 
-    {questionnaire}
+    {answers}
 
     # Report Scope
 
