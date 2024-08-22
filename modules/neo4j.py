@@ -134,7 +134,7 @@ def project_graph(tx, project_id, node_label, relationship_type):
             {
                 RELATED_TO: {
                     type: $relationship_type,
-                    orientation: 'UNDIRECTED',
+                    orientation: 'NATURAL',
                     relationshipFilter: 'project_id = $project_id'
                 }
             }
@@ -169,7 +169,31 @@ def create_and_store_embeddings(
 def drop_graph(tx, project_id):
     tx.run("CALL gds.graph.drop($graph_name)", graph_name=project_id)
 
-def process_embeddings(
+def clear_existing_embeddings(tx, project_id, node_label):
+    tx.run("""
+        MATCH (n:`Entity`)
+        WHERE n.project_id = $project_id
+        REMOVE n.embedding
+    """, project_id=project_id)
+
+def filter_nodes_without_embeddings(tx, project_id, node_label):
+    tx.run("""
+        CALL gds.graph.nodeProperties.drop($graph_name, ['embedding'])
+        YIELD graphName, nodeProperties, nodeLabels
+    """, graph_name=project_id)
+    
+    tx.run("""
+        CALL gds.graph.nodeProperties.stream($graph_name, ['embedding'])
+        YIELD nodeId, propertyValue
+        WITH collect(nodeId) AS nodes_with_embedding
+        CALL gds.beta.graph.subgraph.mutate($graph_name, $graph_name + '_filtered', {
+            relationshipFilter: 'true',
+            nodeFilter: 'NOT id(node) IN $nodes_with_embedding'
+        })
+        YIELD graphName, fromGraphName, nodeCount, relationshipCount
+    """, graph_name=project_id)
+
+def compute_embeddings(
     project_id,
     node_label='Entity', 
     relationship_type='RELATED_TO', 
@@ -179,17 +203,30 @@ def process_embeddings(
     walks_per_node=10, 
     in_out_factor=1.0, 
     return_factor=1.0, 
-    concurrency=4
+    concurrency=4,
+    mode='full'  # 'full' or 'partial'
 ):
     with driver.session() as session:
+        if mode == 'full':
+            # Clear existing embeddings
+            session.write_transaction(clear_existing_embeddings, project_id, node_label)
+        
         # Step 1: Project the graph into GDS
         session.write_transaction(project_graph, project_id, node_label, relationship_type)
+        
+        if mode == 'partial':
+            # Filter to only nodes without embeddings
+            session.write_transaction(filter_nodes_without_embeddings, project_id, node_label)
+            project_id += '_filtered'
         
         # Step 2: Create and store the embeddings
         session.write_transaction(create_and_store_embeddings, project_id, write_property, embedding_dimension, walk_length, walks_per_node, in_out_factor, return_factor, concurrency)
         
-        # Step 3: Optionally, drop the graph from GDS memory
+        # Step 3: Drop the graph from GDS memory
         session.write_transaction(drop_graph, project_id)
+        if mode == 'partial':
+            session.write_transaction(drop_graph, project_id.replace('_filtered', ''))
+
 
 #############################################################
 # EMEDDING FUNCTIONS

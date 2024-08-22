@@ -195,7 +195,7 @@ class KnowledgeGraph:
         # Otherwise, there's nothing to update
 
     def process_embeddings(self):
-        process_embeddings(graph_name="myGraph")
+        compute_embeddings(graph_name=self.project_id)
     
     def _preprocess_documents(self):
 
