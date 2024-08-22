@@ -54,7 +54,7 @@ class Report:
         self.report_template = self.get_report_template()
         self.claims = self.get_claims()
         self.answers = self.get_answers()
-
+        
     def generate_report(self):
         if not self.questionnaire:
             raise ValueError(f"No questionnaire found for questionnaire ID: {self.project.get('questionnaire_id')}")
@@ -74,24 +74,47 @@ class Report:
         system_prompt = textwrap.dedent(report_generation_system_prompt).strip().format(persona=report_persona)
         
         messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": textwrap.dedent(report_generation_first_user_prompt).strip().format(
-                answers=self.format_answers(self.answers),
-                report_scope=report_scope,
-                example=self.report_template["sections"][0]["example"],
-                section_brief=self.report_template["sections"][0]["prompt"]
-            )}
+            {"role": "system", "content": system_prompt}
         ]
 
         drafted_sections = []
         delayed_section = None
         delayed_section_index = None
 
+        # Find the first non-delayed section
+        first_section_index = next((i for i, section in enumerate(self.report_template["sections"]) 
+                                    if not section.get("generate_last", False)), None)
+
+        if first_section_index is None:
+            raise ValueError("All sections are marked as generate_last. At least one section must not be delayed.")
+
+        # Add the first user prompt for the first non-delayed section
+        first_section = self.report_template["sections"][first_section_index]
+        messages.append({
+            "role": "user", 
+            "content": textwrap.dedent(report_generation_first_user_prompt).strip().format(
+                answers=self.format_answers(self.answers),
+                report_scope=report_scope,
+                example=first_section["example"],
+                section_brief=first_section["prompt"]
+            )
+        })
+
         for i, section in enumerate(self.report_template["sections"]):
             if section.get("generate_last", False):
                 delayed_section = section
                 delayed_section_index = i
                 continue
+
+            if i != first_section_index:
+                # Add the subsequent user prompt for non-first sections
+                messages.append({
+                    "role": "user", 
+                    "content": textwrap.dedent(report_generation_subsequent_user_prompt).strip().format(
+                        example=section["example"],
+                        section_brief=section["prompt"]
+                    )
+                })
 
             # Generate the section
             response = self.ai.request_completion(messages=messages)
@@ -104,17 +127,6 @@ class Report:
 
             # Add the AI's response to the messages
             messages.append({"role": "assistant", "content": response})
-
-            # If there's a next section, add the subsequent user prompt
-            if i < len(self.report_template["sections"]) - 1:
-                next_section = self.report_template["sections"][i + 1]
-                messages.append({
-                    "role": "user", 
-                    "content": textwrap.dedent(report_generation_subsequent_user_prompt).strip().format(
-                        example=next_section["example"],
-                        section_brief=next_section["prompt"]
-                    )
-                })
 
         # Generate the delayed section (if any)
         if delayed_section:
