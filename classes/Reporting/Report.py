@@ -7,7 +7,7 @@ import yaml
 from collections import OrderedDict
 import re
 import textwrap
-from datetime import datetime, timezone
+import datetime
 
 # Import text functions
 try:
@@ -297,8 +297,8 @@ class Report:
         formatted_answers = []
         for question, answer in answers.items():
             doc = {
-                "created": datetime.now(timezone.utc),
-                "last_modified": datetime.now(timezone.utc),
+                "created": datetime.datetime.now(datetime.timezone.utc),
+                "last_modified": datetime.datetime.now(datetime.timezone.utc),
                 "project_id": self.project_id,
                 "question": question,
                 "answer": answer
