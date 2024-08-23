@@ -45,6 +45,7 @@ class Report:
     REPORT_TEMPLATE_INDEX = "prod-report-templates"
     CLAIMS_INDEX = "prod-claims"
     ANSWER_INDEX = "prod-answers"
+    REPORT_TRAINNG_INDEX = "prod-report-training"
 
     def __init__(self, project_id):
         self.project_id = project_id
@@ -54,7 +55,18 @@ class Report:
         self.report_template = self.get_report_template()
         self.claims = self.get_claims()
         self.answers = self.get_answers()
-        
+
+        # Variable for training data
+        self.training_data = {}
+        self.training_data['system_prompt_template'] = report_generation_system_prompt
+        self.training_data['first_user_prompt_template'] = report_generation_first_user_prompt
+        self.training_data['subsequent_user_prompt_template'] = report_generation_subsequent_user_prompt
+        self.training_data['project_id'] = self.project_id
+        self.training_data['persona'] = self.report_template.get("report_persona")
+        self.training_data['report_scope'] = self.report_template.get("report_scope")
+        self.training_data['answers'] = self.answers
+        self.training_data['sections'] = []
+
     def generate_report(self):
         if not self.questionnaire:
             raise ValueError(f"No questionnaire found for questionnaire ID: {self.project.get('questionnaire_id')}")
@@ -118,7 +130,7 @@ class Report:
 
             # Generate the section
             response = self.ai.request_completion(messages=messages)
-            
+
             # Add the generated section to drafted_sections
             drafted_sections.append({
                 "title": section["title"],
@@ -127,6 +139,19 @@ class Report:
 
             # Add the AI's response to the messages
             messages.append({"role": "assistant", "content": response})
+
+            # Add section to training data
+            self.training_data['sections'].append({
+                "generate_last": section.get("generate_last", False),
+                "structured": section["structured"],
+                "tag": section["tag"],
+                "title": section["title"],
+                "prompt": section["prompt"],
+                "example": section["example"],
+                "generated_content": response,
+                "human_content": ""
+            })
+            
 
         # Generate the delayed section (if any)
         if delayed_section:
@@ -144,6 +169,21 @@ class Report:
                 "title": delayed_section["title"],
                 "content": response
             })
+
+            # Add section to training data
+            self.training_data['sections'].append({
+                "generate_last": delayed_section.get("generate_last", False),
+                "structured": delayed_section["structured"],
+                "tag": delayed_section["tag"],
+                "title": delayed_section["title"],
+                "prompt": delayed_section["prompt"],
+                "example": delayed_section["example"],
+                "generated_content": response,
+                "human_content": ""
+            })
+
+        # Once generated, submit training data to elastic
+        add_to_es(self.REPORT_TRAINNG_INDEX, self.training_data, self.project_id)
 
         return drafted_sections
     
@@ -232,22 +272,11 @@ class Report:
 
     @staticmethod
     def strip_references(text):
+        # Strip references like [1], [2], etc.
         text = re.sub(r'\[\d+\]', '', text)
-        text = re.sub(r'\n\n\[\d+\].*', '', text, flags=re.DOTALL)
-        text = ' '.join(text.split())
-        return text.strip()
 
-    def report_section(self, section, persona, scope):
-        system_prompt = textwrap.dedent(report_generation_system_prompt).strip().format(persona=persona)
-        user_prompt = textwrap.dedent(report_generation_first_user_prompt).strip().format(
-            answers=self.format_answers(self.answers), 
-            report_scope=scope, 
-            example=section["example"], 
-            section_brief=section["prompt"]
-        )
-
-        response = self.ai.request_completion(system_prompt, user_prompt)
-        return f"# {section['title']}\n{response}\n\n"
+        # Remove everything after line break
+        text = text.split("\n")[0]
 
     def check_if_answers_exist(self):
         query = {

@@ -8,6 +8,21 @@ import warnings
 import transformers
 import json
 
+# Import text functions
+try:
+    # Try relative imports for deployment
+    from ....modules.elastic import *
+    from ....modules.neo4j import *
+except ImportError:
+    try:
+        # Fallback to absolute imports with project name for structured imports
+        from ParchmentProphet.modules.elastic import *
+        from ParchmentProphet.modules.neo4j import *
+    except ImportError:
+        # Fallback to simple absolute imports for local testing
+        from modules.neo4j import *
+        from modules.elastic import *
+
 # Suppress FutureWarning from transformers
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -58,6 +73,9 @@ class KnowledgeQuery:
 
         self.completed_questionnaire = {}
         self.ai_handler = AIHandler.load()
+
+        self.claim_training =[]
+        self.training_index = "prod-claim-training"
 
     def set_seed(self, seed):
         random.seed(seed)
@@ -133,4 +151,28 @@ class KnowledgeQuery:
             answer = self.ai_handler.request_completion(system_prompt, user_prompt)
             self.completed_questionnaire[question['question']] = answer
 
+            # Add to training data
+            self.claim_training.append({
+                "project_id": claim['project_id'],
+                "question": question['question'],
+                "category": claim['category'],
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "generated_answer": answer,
+                "human_answer": ""
+            })
+
+        # Submit training data to Elasticsearch
+        self.submit_training_data()
+
         return self.completed_questionnaire
+    
+    def submit_training_data(self):
+
+        for training_data in self.claim_training:
+            # ID should be base64(project_id + category + question)
+            id = base64.b64encode(f"{training_data['project_id']}_{training_data['category']}_{training_data['question']}".encode()).decode()
+            add_to_es(self.training_index, training_data, id)
+
+    
+
