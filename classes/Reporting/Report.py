@@ -307,5 +307,6 @@ class Report:
             add_to_es(self.ANSWER_INDEX, doc)
 
         self.answers = formatted_answers
+        self.training_data['answers'] = formatted_answers
 
 
