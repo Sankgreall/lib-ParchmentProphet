@@ -386,7 +386,8 @@ class KnowledgeGraph:
 
     def _generate_document_summary(self, document):
         
-        with open(document['markdown_path'], "r") as file:
+        # In UTF
+        with open(document['markdown_path'], "r", encoding="utf-8") as file:
             document_text = file.read()
 
         system_prompt = textwrap.dedent(document_summary_system_prompt).strip().replace("{metadata}", json.dumps(document['document_metadata'], indent=4)).replace("{scope}", self.report_scope)
@@ -396,7 +397,7 @@ class KnowledgeGraph:
 
     def _chunk_document(self, document):
         chunks = []
-        with open(document['markdown_path'], "r") as file:
+        with open(document['markdown_path'], "r", encoding="utf-8") as file:
             document_text = file.read()
 
         for i, chunk in enumerate(chunk_large_text(document_text, self.token_limit)):
@@ -511,7 +512,7 @@ class KnowledgeGraph:
     
     def _md5_hash(self, file_path):
         md5_hash = hashlib.md5()
-        with open(file_path, "rb") as file:
+        with open(file_path, "rb", encoding="utf-8") as file:
             for chunk in iter(lambda: file.read(4096), b""):
                 md5_hash.update(chunk)
         return md5_hash.hexdigest()
