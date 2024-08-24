@@ -62,3 +62,13 @@ def get_document_by_id(index_name, document_id):
         return document
     
     return None
+
+def bulk_delete_by_query(index_name, query):
+    """
+    Delete multiple documents that match the given query from the specified index.
+    
+    :param index_name: The name of the index to delete from
+    :param query: The query to match documents for deletion
+    :return: A dictionary containing the deletion results
+    """
+    return es.delete_by_query(index=index_name, body=query)

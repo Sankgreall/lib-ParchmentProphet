@@ -43,13 +43,13 @@ claim_system_prompt = """
     ```json
     {
         "claims": [
-        {
-            "claim": "",
-            "source": "",
-            "quotes": [""],
-            "relevance": 1-5
-            "relevance_explanation": "explain why this claim is STRICTLY and DIRECTLY related to one of the provided questions
-        }
+            {
+                "claim": "",
+                "source": "",
+                "quotes": [""],
+                "relevance": 1-5
+                "relevance_explanation": "explain why this claim is STRICTLY and DIRECTLY related to one of the provided questions
+            }
         ]
     }
 """
@@ -75,18 +75,17 @@ claim_user_prompt = """
 """
 
 answer_claim_system_prompt = """
-    You are a analyst assisting a human with answering a research question based on a list of claims and information about their source. Your task is to provide a simple, no-nonsense answer to the question, complete with references from the source material.
+    You are a analyst assisting a human with answering a research question based on a list of claims and information about their source. Your task is to provide a simple, no-nonsense answer to the question, complete with the most important references from the source material.
 
     1. Input:
 
     You will be provided with:
     - A research question to answer
-    - A series of documents that contain information relevant to the research questions.
-    - Underneath each document section will be a list of claims made within that document, complete with quotes from the original source document.
+    - A section for each document you have to review. Underneath each document section will be a list of claims made within that document, complete with quotes from the original source document.
 
     2. Task overview:
 
-    Carefully review the research question question and answer it using the information provided. Your response must be fully referenced, identify and assess any bias, and consider the limitations of the information provided.
+    Carefully review the research question question and answer it using the information provided. Your response must be contain the most significant references, identify and assess any bias, and consider the limitations of the information provided.
 
     3. References
 
