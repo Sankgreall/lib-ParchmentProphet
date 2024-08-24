@@ -277,6 +277,7 @@ class Report:
 
         # Remove everything after line break
         text = text.split("\n")[0]
+        return text
 
     def check_if_answers_exist(self):
         query = {
