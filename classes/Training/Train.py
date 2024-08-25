@@ -52,9 +52,8 @@ class Train:
 
         self.ai_handler = AIHandler.load(provider)    
 
-    def train(self):
+    def train_report_generation(self):
         reports = self.retrieve_report_training_samples()
-        print(f"Retrieved {len(reports)} reports for training")
         processed_messages = []
         
         for report in reports:
@@ -71,7 +70,6 @@ class Train:
                 temp.write(json.dumps(messages) + "\n")
 
         # With the training file created, we can train
-        print(f"Training model with {len(processed_messages)} samples")
         new_model = self.ai_handler.fine_tune_model(file_path, base_model="gpt-4o-2024-08-06")
 
         # delete the temp file
@@ -79,9 +77,8 @@ class Train:
 
         return new_model
 
-    def train_answers(self, base_model="gpt-4o-2024-08-06"):
+    def train_answer_generation(self, base_model="gpt-4o-2024-08-06"):
         samples = self.retrieve_training_samples(self.answer_training_index)
-        print(f"Retrieved {len(samples)} samples for training")
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
             file_path = temp.name
@@ -100,9 +97,8 @@ class Train:
         finally:
             os.unlink(file_path)
 
-    def train_entity_extraction(self, base_model="gpt-4o-2024-08-06"):
+    def train_graph_extraction(self, base_model="gpt-4o-2024-08-06"):
         samples = self.retrieve_training_samples(self.graph_training_index)
-        print(f"Retrieved {len(samples)} samples for training")
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
             file_path = temp.name
@@ -114,8 +110,6 @@ class Train:
                     messages.append({"role": "user", "content": sample.get("user_prompt")})
                     messages.append({"role": "assistant", "content": sample["human_response"]})
                     temp.write(json.dumps({"messages": messages}) + "\n")
-                    print(json.dumps({"messages": messages}))
-                    exit()
 
         try:
             new_model = self.ai_handler.fine_tune_model(file_path, base_model=base_model)
@@ -123,7 +117,7 @@ class Train:
         finally:
             os.unlink(file_path)
 
-    def train_claims(self, base_model="gpt-4o-2024-08-06"):
+    def train_claim_extraction(self, base_model="gpt-4o-2024-08-06"):
         samples = self.retrieve_training_samples(self.claim_training_index)
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
