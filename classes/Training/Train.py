@@ -33,8 +33,6 @@ except ImportError:
         from modules.neo4j import *
         from modules.elastic import *
 
-
-
 # Index in Elastic where documents are stored
 DOCUMENTS_INDEX = "prod-documents"
 
@@ -79,8 +77,8 @@ class Train:
 
         return new_model
 
-    def train_claims(self, base_model="gpt-4o-2024-08-06"):
-        samples = self.retrieve_claim_training_samples()
+    def train_answers(self, base_model="gpt-4o-2024-08-06"):
+        samples = self.retrieve_answer_training_samples()
         print(f"Retrieved {len(samples)} samples for training")
 
         if not samples or len(samples) < 10:

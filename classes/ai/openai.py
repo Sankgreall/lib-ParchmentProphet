@@ -386,6 +386,11 @@ class OpenAIHandler:
         if base_model not in self.supported_for_training:
             raise ValueError(f"Base model {base_model} is not supported for fine-tuning.")
         
+        # Count the number of lines in the file
+        num_lines = sum(1 for line in open(training_file_path))
+        if num_lines < 10:
+            raise ValueError("Insufficient training data. At least 10 samples are required for fine-tuning.")
+        
         result = {
             "status": "unknown",
             "model": None,
@@ -396,6 +401,9 @@ class OpenAIHandler:
         # Upload the training file
         try:
             with open(training_file_path, "rb") as file:
+
+
+
                 file_upload = self.client.files.create(file=file, purpose="fine-tune")
             print(f"Training file uploaded with ID: {file_upload.id}")
             result["details"]["file_id"] = file_upload.id

@@ -107,7 +107,7 @@ class KnowledgeQuery:
             exclude_entities=exclude_entities
         )
         return results
-        
+            
     def answer_questions_from_claims(self, questionnaire, claims):
         for question in questionnaire['questionnaire']:
             claims_by_document_id = {}
@@ -123,8 +123,11 @@ class KnowledgeQuery:
             # Now we construct the overall string to inject into prompt
             claims_string = ""
             for doc_id, category_claims in claims_by_document_id.items():
+                # Sort claims by relevance (convert to float to handle both int and string cases)
+                sorted_claims = sorted(category_claims, key=lambda x: float(x['relevance']), reverse=True)
+
                 # Extract document metadata from first claim in the list
-                first_claim = category_claims[0]
+                first_claim = sorted_claims[0]
                 claims_string += f"\n## {first_claim['document_metadata']['title']}\n"
                 claims_string += f"Document ID: {doc_id}\n"
                 claims_string += f"Type of document: {first_claim['document_summary']['type_of_document']}\n"
@@ -133,15 +136,15 @@ class KnowledgeQuery:
 
                 claims_string += "### Claims\n"
 
-                # Iterate through all claims for this document
-                for claim in category_claims:
+                # Iterate through all claims for this document (now sorted)
+                for claim in sorted_claims:
                     claims_string += f"\nClaim: {claim['claim']}\n"
                     claims_string += f"Source: {claim['source']}\n"
                     claims_string += "Supporting Quotes:\n"
                     for quote in claim['quotes']:
                         claims_string += f"   \"{quote}\"\n"
-                    claims_string += f"Relevance: {claim['relevance']}\n"
-                    claims_string += f"Relevance Explanation: {claim['relevance_explanation']}\n"
+                    # claims_string += f"Relevance: {claim['relevance']}\n"
+                    # claims_string += f"Relevance Explanation: {claim['relevance_explanation']}\n"
                     claims_string += "\n"  # Add a blank line between claims
 
             system_prompt = textwrap.dedent(answer_claim_system_prompt).strip()

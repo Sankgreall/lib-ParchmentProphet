@@ -486,7 +486,7 @@ class KnowledgeGraph:
 
         # Store data for training
         training_data = {
-            "projet_id": self.project_id,
+            "project_id": self.project_id,
             "chunk_id": chunk['chunk_id'],
             "document_id": chunk['document_id'],
             "chunk_index": chunk['chunk_index'],
@@ -529,7 +529,7 @@ class KnowledgeGraph:
 
             # Store data for training
             training_data = {
-                "projet_id": self.project_id,
+                "project_id": self.project_id,
                 "chunk_id": chunk['chunk_id'],
                 "document_id": chunk['document_id'],
                 "chunk_index": chunk['chunk_index'],
