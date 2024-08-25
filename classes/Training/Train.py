@@ -80,18 +80,18 @@ class Train:
         return new_model
 
     def train_answers(self, base_model="gpt-4o-2024-08-06"):
-        samples = self.retrieve_answer_training_samples()
+        samples = self.retrieve_training_samples(self.answer_training_index)
         print(f"Retrieved {len(samples)} samples for training")
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
             file_path = temp.name
             
             for sample in samples:
-                if sample.get("human_answer") != "":
+                if sample.get("human_response") != "":
                     messages = []
                     messages.append({"role": "system", "content": sample["system_prompt"]})
                     messages.append({"role": "user", "content": sample.get("user_prompt")})
-                    messages.append({"role": "assistant", "content": sample["human_answer"]})
+                    messages.append({"role": "assistant", "content": sample["human_response"]})
                     temp.write(json.dumps({"messages": messages}) + "\n")
 
         try:
@@ -101,7 +101,7 @@ class Train:
             os.unlink(file_path)
 
     def train_entity_extraction(self, base_model="gpt-4o-2024-08-06"):
-        samples = self.retrieve_graph_training_samples()
+        samples = self.retrieve_training_samples(self.graph_training_index)
         print(f"Retrieved {len(samples)} samples for training")
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
@@ -124,17 +124,17 @@ class Train:
             os.unlink(file_path)
 
     def train_claims(self, base_model="gpt-4o-2024-08-06"):
-        samples = self.retrieve_claim_training_samples()
+        samples = self.retrieve_training_samples(self.claim_training_index)
 
         with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
             file_path = temp.name
             
             for sample in samples:
-                if sample.get("human_answer") != "":
+                if sample.get("human_response") != "":
                     messages = []
                     messages.append({"role": "system", "content": sample["system_prompt"]})
                     messages.append({"role": "user", "content": sample.get("user_prompt")})
-                    messages.append({"role": "assistant", "content": sample["human_answer"]})
+                    messages.append({"role": "assistant", "content": sample["human_response"]})
                     temp.write(json.dumps({"messages": messages}) + "\n")
 
         try:
@@ -143,82 +143,17 @@ class Train:
         finally:
             os.unlink(file_path)
 
-    def retrieve_claim_training_samples(self):
+    def retrieve_training_samples(self, index):
         query = {
             "query": {
-                "bool": {
-                    "must": [
-                        {"exists": {"field": "human_response"}},
-                        {
-                            "script": {
-                                "script": {
-                                    "source": "doc['human_response.keyword'].value != ''",
-                                    "lang": "painless"
-                                }
-                            }
-                        }
-                    ]
+                "exists": {
+                    "field": "human_response"
                 }
             },
-            "size": 100  # Adjust this value based on your needs
+            "size": 100  
         }
         
-        result = search_es(self.claim_training_index, query)
-        
-        if result["hits"]["total"]["value"] > 0:
-            return [hit["_source"] for hit in result["hits"]["hits"]]
-        
-        return []
-
-
-    def retrieve_graph_training_samples(self):
-        query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"exists": {"field": "human_response"}},
-                        {
-                            "script": {
-                                "script": {
-                                    "source": "doc['human_response.keyword'].value != ''",
-                                    "lang": "painless"
-                                }
-                            }
-                        }
-                    ]
-                }
-            },
-            "size": 100  # Adjust this value based on your needs
-        }
-        
-        result = search_es(self.answer_training_index, query)
-        
-        if result["hits"]["total"]["value"] > 0:
-            return [hit["_source"] for hit in result["hits"]["hits"]]
-        
-        return []
-
-    def retrieve_answer_training_samples(self):
-        query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"exists": {"field": "human_answer"}},
-                        {
-                            "script": {
-                                "script": {
-                                    "source": "doc['human_answer.keyword'].value != ''",
-                                    "lang": "painless"
-                                }
-                            }
-                        }
-                    ]
-                }
-            },
-            "size": 100  # Adjust this value based on your needs
-        }
-        
-        result = search_es(self.answer_training_index, query)
+        result = search_es(index, query)
         
         if result["hits"]["total"]["value"] > 0:
             return [hit["_source"] for hit in result["hits"]["hits"]]
@@ -262,7 +197,7 @@ class Train:
         messages.append({"role": "user", "content": first_user_prompt})
         
         # Add assistant's response for the first section
-        messages.append({"role": "assistant", "content": report['sections'][0]['human_content']})
+        messages.append({"role": "assistant", "content": report['sections'][0]['human_response']})
         
         # Add subsequent sections
         for section in report['sections'][1:]:
@@ -271,7 +206,7 @@ class Train:
                 section_brief=section['prompt']
             )
             messages.append({"role": "user", "content": subsequent_user_prompt})
-            messages.append({"role": "assistant", "content": section['human_content']})
+            messages.append({"role": "assistant", "content": section['human_response']})
         
         return messages
 
