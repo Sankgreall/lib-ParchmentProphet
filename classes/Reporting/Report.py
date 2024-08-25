@@ -47,7 +47,7 @@ class Report:
     ANSWER_INDEX = "prod-answers"
     REPORT_TRAINNG_INDEX = "prod-report-training"
 
-    def __init__(self, project_id):
+    def __init__(self, project_id, model=None, temperature=0.2):
         self.project_id = project_id
         self.ai = AIHandler.load()
         self.project = self.get_project()
@@ -55,6 +55,9 @@ class Report:
         self.report_template = self.get_report_template()
         self.claims = self.get_claims()
         self.answers = self.get_answers()
+
+        self.model = model
+        self.temperature = temperature
 
         # Variable for training data
         self.training_data = {}
@@ -129,7 +132,7 @@ class Report:
                 })
 
             # Generate the section
-            response = self.ai.request_completion(messages=messages)
+            response = self.ai.request_completion(messages=messages, model=self.model, temperature=self.temperature)
 
             # Add the generated section to drafted_sections
             drafted_sections.append({

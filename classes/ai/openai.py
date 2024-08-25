@@ -7,6 +7,7 @@ from PIL import Image
 import io
 import base64
 from io import BytesIO
+import time
 
 
 # Import text functions
@@ -34,6 +35,13 @@ class OpenAIHandler:
         self.max_output_tokens = max_output_tokens or int(os.getenv("OPENAI_MAX_OUTPUT_TOKENS", 4096))
         self.max_context_tokens = max_context_tokens or int(os.getenv("OPENAI_MAX_CONTEXT_TOKENS", 126000))
         self.default_model = default_model or os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o")
+
+        self.supported_for_training = [
+            "gpt-3.5-turbo", 
+            "gpt-4o", 
+            "gpt-4o-mini",
+            "gpt-4o-2024-08-06"
+        ]
 
         # Initialize the OpenAI
         self.client = OpenAI(api_key=self.api_key)
@@ -356,4 +364,95 @@ class OpenAIHandler:
         texts = [text.replace("\n", " ") for text in texts]
         response = self.client.embeddings.create(input=texts, model=model)
         return [data.embedding for data in response.data]
-    
+            
+    def fine_tune_model(self, training_file_path, base_model="gpt-4o", suffix=None, hyperparameters=None, timeout=3600):
+        """
+        Fine-tunes a model using the provided training file.
+
+        Args:
+            training_file_path (str): Path to the training file (should be a JSONL file).
+            base_model (str): The base model to fine-tune. Defaults to "gpt-4o".
+            suffix (str, optional): A string of up to 40 characters that will be added to your fine-tuned model name.
+            hyperparameters (dict, optional): Hyperparameters for fine-tuning.
+            timeout (int): Maximum time in seconds to wait for fine-tuning to complete. Defaults to 3600 (1 hour).
+
+        Returns:
+            dict: A dictionary containing the status of the fine-tuning job and additional information.
+
+        Raises:
+            ValueError: If the base model is not supported for fine-tuning.
+        """
+        
+        if base_model not in self.supported_for_training:
+            raise ValueError(f"Base model {base_model} is not supported for fine-tuning.")
+        
+        result = {
+            "status": "unknown",
+            "model": None,
+            "error": None,
+            "details": {}
+        }
+
+        # Upload the training file
+        try:
+            with open(training_file_path, "rb") as file:
+                file_upload = self.client.files.create(file=file, purpose="fine-tune")
+            print(f"Training file uploaded with ID: {file_upload.id}")
+            result["details"]["file_id"] = file_upload.id
+        except Exception as e:
+            result["status"] = "failed"
+            result["error"] = f"File upload failed: {str(e)}"
+            return result
+
+        try:
+            # Create fine-tuning job
+            job_params = {
+                "training_file": file_upload.id,
+                "model": base_model
+            }
+            if suffix:
+                job_params["suffix"] = suffix
+            if hyperparameters:
+                job_params["hyperparameters"] = hyperparameters
+
+            fine_tuning_job = self.client.fine_tuning.jobs.create(**job_params)
+            result["details"]["job_id"] = fine_tuning_job.id
+            print(f"Fine-tuning job created with ID: {fine_tuning_job.id}")
+
+            # Wait for the fine-tuning job to complete or timeout
+            start_time = time.time()
+            while True:
+                job_status = self.client.fine_tuning.jobs.retrieve(fine_tuning_job.id)
+                print(f"Fine-tuning status: {job_status.status}")
+                result["status"] = job_status.status
+                
+                if job_status.status == "succeeded":
+                    print("Fine-tuning completed successfully!")
+                    result["model"] = job_status.fine_tuned_model
+                    return result
+                elif job_status.status == "failed":
+                    result["error"] = "Fine-tuning failed. Check job details for more information."
+                    result["details"]["job_details"] = job_status
+                    return result
+                
+                if time.time() - start_time > timeout:
+                    result["status"] = "timeout"
+                    result["error"] = f"Fine-tuning timed out after {timeout} seconds."
+                    return result
+                
+                time.sleep(60)  # Wait for 60 seconds before checking again
+
+        except Exception as e:
+            result["status"] = "error"
+            result["error"] = f"An unexpected error occurred: {str(e)}"
+            print(result)
+            return False
+        finally:
+            # Delete the training file
+            try:
+                self.client.files.delete(file_upload.id)
+                print(f"Training file with ID {file_upload.id} has been deleted.")
+            except Exception as delete_error:
+                print(f"Failed to delete training file: {str(delete_error)}")
+
+        return result
