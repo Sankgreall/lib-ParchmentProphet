@@ -153,25 +153,47 @@ class Train:
             return [hit["_source"] for hit in result["hits"]["hits"]]
         
         return []
-
+    
     def retrieve_report_training_samples(self, size=100):
         query = {
-            "query": {
-                "match_all": {}
+            "size": size,
+            "runtime_mappings": {
+                "all_sections_have_human_response": {
+                    "type": "boolean",
+                    "script": {
+                        "source": """
+                            def sections = params._source.sections;
+                            if (sections == null || sections.empty) {
+                                emit(false);
+                            } else {
+                                for (def section : sections) {
+                                    if (section.human_response == null || section.human_response.empty) {
+                                        emit(false);
+                                        return;
+                                    }
+                                }
+                                emit(true);
+                            }
+                        """
+                    }
+                }
             },
-            "size": size
+            "query": {
+                "term": {
+                    "all_sections_have_human_response": {
+                        "value": True
+                    }
+                }
+            },
+            "_source": True  # This ensures we get the full source of each document
         }
+
+        result = search_es("prod-report-training", query)
         
-        result = search_es(self.report_training_index, query)
+        # Extract and return the source of each matching document
+        matching_documents = [hit['_source'] for hit in result['hits']['hits']]
         
-        if result["hits"]["total"]["value"] > 0:
-            documents = [
-                {**hit["_source"], "_id": hit["_id"]}
-                for hit in result["hits"]["hits"]
-            ]
-            return documents
-        
-        return []
+        return matching_documents
 
     def reconstruct_messages(self, report):
 
