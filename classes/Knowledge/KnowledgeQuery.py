@@ -75,7 +75,7 @@ class KnowledgeQuery:
         self.ai_handler = AIHandler.load()
 
         self.claim_training =[]
-        self.training_index = "prod-claim-training"
+        self.training_index = "prod-answer-training"
 
     def set_seed(self, seed):
         random.seed(seed)

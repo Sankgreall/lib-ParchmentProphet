@@ -43,7 +43,7 @@ class Train:
     def __init__(self, provider="openai"):
 
         self.report_training_index = "prod-report-training"
-        self.claim_training_index = "prod-claim-training"
+        self.answer_training_index = "prod-answer-training"
 
 
 
@@ -110,7 +110,7 @@ class Train:
     def train_entity_extraction(self):
         pass
 
-    def retrieve_claim_training_samples(self):
+    def retrieve_answer_training_samples(self):
         query = {
             "query": {
                 "bool": {
@@ -130,7 +130,7 @@ class Train:
             "size": 1000  # Adjust this value based on your needs
         }
         
-        result = search_es(self.claim_training_index, query)
+        result = search_es(self.answer_training_index, query)
         
         if result["hits"]["total"]["value"] > 0:
             return [hit["_source"] for hit in result["hits"]["hits"]]
