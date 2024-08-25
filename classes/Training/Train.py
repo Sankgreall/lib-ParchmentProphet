@@ -43,6 +43,8 @@ class Train:
     def __init__(self, provider="openai"):
 
         self.report_training_index = "prod-report-training"
+        self.claim_training_index = "prod-claim-training"
+
 
 
         self.token_limit = 600
@@ -75,12 +77,65 @@ class Train:
         # delete the temp file
         os.unlink(temp.name)
 
-        print(f"New model trained: {new_model}")
-        exit()
+        return new_model
 
-        print(json.dumps(processed_reports, indent=2))
-        exit()
+    def train_claims(self, base_model="gpt-4o-2024-08-06"):
+        samples = self.retrieve_claim_training_samples()
+        print(f"Retrieved {len(samples)} samples for training")
+
+        if not samples or len(samples) < 10:
+            raise ValueError("Insufficient samples for training")
+
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".jsonl") as temp:
+            file_path = temp.name
+            
+            for sample in samples:
+                if sample.get("human_answer") != "":
+                    messages = []
+                    if sample.get("system_prompt"):
+                        messages.append({"role": "system", "content": sample["system_prompt"]})
+                    messages.append({"role": "user", "content": sample.get("user_prompt")})
+                    messages.append({"role": "assistant", "content": sample["human_answer"]})
+                    temp.write(json.dumps({"messages": messages}) + "\n")
+                    print(json.dumps({"messages": messages}, indent=2))
+                    exit()
+
+        try:
+            print(f"Training model with {len(samples)} samples")
+            new_model = self.ai_handler.fine_tune_model(file_path, base_model=base_model)
+            return new_model
+        finally:
+            os.unlink(file_path)
+
+    def train_entity_extraction(self):
+        pass
+
+    def retrieve_claim_training_samples(self):
+        query = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"exists": {"field": "human_answer"}},
+                        {
+                            "script": {
+                                "script": {
+                                    "source": "doc['human_answer.keyword'].value != ''",
+                                    "lang": "painless"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            "size": 1000  # Adjust this value based on your needs
+        }
         
+        result = search_es(self.claim_training_index, query)
+        
+        if result["hits"]["total"]["value"] > 0:
+            return [hit["_source"] for hit in result["hits"]["hits"]]
+        
+        return []
 
     def retrieve_report_training_samples(self, size=100):
         query = {

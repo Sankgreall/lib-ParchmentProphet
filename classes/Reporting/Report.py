@@ -68,6 +68,7 @@ class Report:
         self.training_data['persona'] = self.report_template.get("report_persona")
         self.training_data['report_scope'] = self.report_template.get("report_scope")
         self.training_data['answers'] = self.answers
+        self.training_data['created'] = datetime.datetime.now(datetime.timezone.utc)
         self.training_data['sections'] = []
 
     def generate_report(self):

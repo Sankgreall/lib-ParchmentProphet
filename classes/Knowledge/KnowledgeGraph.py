@@ -62,6 +62,9 @@ class KnowledgeGraph:
 
         self.entities_string = self.get_entity_list()
 
+        self.graph_training_index = "prod-graph-training"
+        self.claim_training_index = "prod-claim-training"
+
     def process(self):
         # Preprocess documents
         self._preprocess_documents()
@@ -479,7 +482,23 @@ class KnowledgeGraph:
             previous_chunk=previous_chunk
         )
 
-        return json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
+        entities = self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True)
+
+        # Store data for training
+        training_data = {
+            "projet_id": self.project_id,
+            "chunk_id": chunk['chunk_id'],
+            "document_id": chunk['document_id'],
+            "chunk_index": chunk['chunk_index'],
+            "system_prompt": system_prompt,
+            "user_prompt": user_prompt,
+            "generated_response": entities,
+            "human_response": ""
+        }
+
+        add_to_es(self.graph_training_index, training_data)
+
+        return json.loads(entities)
     
     def _get_questions_by_category(self, target_category):
         # Filter questions based on the category
@@ -506,7 +525,23 @@ class KnowledgeGraph:
         )
 
         try:
-            return json.loads(self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True))
+            claims = self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True)
+
+            # Store data for training
+            training_data = {
+                "projet_id": self.project_id,
+                "chunk_id": chunk['chunk_id'],
+                "document_id": chunk['document_id'],
+                "chunk_index": chunk['chunk_index'],
+                "system_prompt": system_prompt,
+                "user_prompt": user_prompt,
+                "generated_response": claims,
+                "human_response": ""
+            }
+
+            add_to_es(self.claim_training_index, training_data)          
+
+            return json.loads(claims)
         except json.decoder.JSONDecodeError:
             return {"claims": []}
     
