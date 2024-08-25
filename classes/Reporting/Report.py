@@ -153,7 +153,6 @@ class Report:
                 "prompt": section["prompt"],
                 "example": section["example"],
                 "generated_content": response,
-                "human_content": ""
             })
             
 
@@ -183,7 +182,6 @@ class Report:
                 "prompt": delayed_section["prompt"],
                 "example": delayed_section["example"],
                 "generated_content": response,
-                "human_content": ""
             })
 
         # Once generated, submit training data to elastic

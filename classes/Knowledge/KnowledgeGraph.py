@@ -493,7 +493,6 @@ class KnowledgeGraph:
             "system_prompt": system_prompt,
             "user_prompt": user_prompt,
             "generated_response": entities,
-            "human_response": ""
         }
 
         add_to_es(self.graph_training_index, training_data)
@@ -536,7 +535,6 @@ class KnowledgeGraph:
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
                 "generated_response": claims,
-                "human_response": ""
             }
 
             add_to_es(self.claim_training_index, training_data)          

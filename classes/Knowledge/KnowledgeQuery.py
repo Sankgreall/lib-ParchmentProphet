@@ -162,7 +162,6 @@ class KnowledgeQuery:
                 "system_prompt": system_prompt,
                 "user_prompt": user_prompt,
                 "generated_answer": answer,
-                "human_answer": ""
             })
 
         # Submit training data to Elasticsearch
