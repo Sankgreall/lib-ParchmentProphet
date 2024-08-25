@@ -52,7 +52,7 @@ class Train:
 
         self.ai_handler = AIHandler.load(provider)    
 
-    def train_report_generation(self):
+    def train_report_generation(self, base_model="gpt-4o-2024-08-06"):
         reports = self.retrieve_report_training_samples()
         processed_messages = []
         
@@ -70,7 +70,7 @@ class Train:
                 temp.write(json.dumps(messages) + "\n")
 
         # With the training file created, we can train
-        new_model = self.ai_handler.fine_tune_model(file_path, base_model="gpt-4o-2024-08-06")
+        new_model = self.ai_handler.fine_tune_model(file_path, base_model)
 
         # delete the temp file
         os.unlink(temp.name)
