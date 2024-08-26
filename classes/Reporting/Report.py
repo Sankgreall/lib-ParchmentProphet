@@ -46,8 +46,9 @@ class Report:
     CLAIMS_INDEX = "prod-claims"
     ANSWER_INDEX = "prod-answers"
     REPORT_TRAINNG_INDEX = "prod-report-training"
+    MODELS_INDEX = "prod-models"
 
-    def __init__(self, project_id, model=None, temperature=0.2):
+    def __init__(self, project_id):
         self.project_id = project_id
         self.ai = AIHandler.load()
         self.project = self.get_project()
@@ -56,8 +57,12 @@ class Report:
         self.claims = self.get_claims()
         self.answers = self.get_answers()
 
-        self.model = model
-        self.temperature = temperature
+        # MODELS
+        self.latest_models = self.get_latest_models()
+        self.report_gen_model = self.latest_models.get("report_gen_model","gpt-4o-2024-08-06")
+        self.claim_answer_model = self.latest_models.get("claim_answer_model","gpt-4o-2024-08-06")
+        self.graph_model = self.latest_models.get("graph_model","gpt-4o-2024-08-06")
+        self.claim_model = self.latest_models.get("claim_model","gpt-4o-2024-08-06")
 
         # Variable for training data
         self.training_data = {}
@@ -71,6 +76,36 @@ class Report:
         self.training_data['created'] = datetime.datetime.now(datetime.timezone.utc)
         self.training_data['sections'] = []
 
+    def get_latest_models(self):
+        try:
+            query = {
+                "sort": [
+                    {"created": {"order": "desc"}}
+                ],
+                "size": 1
+            }
+            result = search_es(self.MODELS_INDEX, query)
+            
+            if result["hits"]["total"]["value"] > 0:
+                results = result["hits"]["hits"][0]["_source"]
+                return results
+            else:
+                # return default
+                return {
+                    "report_gen_model": "gpt-4o-2024-08-06",
+                    "claim_answer_model": "gpt-4o-2024-08-06",
+                    "graph_model": "gpt-4o-2024-08-06",
+                    "claim_model": "gpt-4o-2024-08-06",
+                }
+        except Exception:
+            # return default
+            return {
+                "report_gen_model": "gpt-4o-2024-08-06",
+                "claim_answer_model": "gpt-4o-2024-08-06",
+                "graph_model": "gpt-4o-2024-08-06",
+                "claim_model": "gpt-4o-2024-08-06",
+            }
+
     def generate_report(self):
         if not self.questionnaire:
             raise ValueError(f"No questionnaire found for questionnaire ID: {self.project.get('questionnaire_id')}")
@@ -80,6 +115,7 @@ class Report:
 
         if not self.claims:
             raise ValueError(f"No claims found for project ID: {self.project_id}")
+    
 
         report_scope = self.report_template.get("report_scope")
         report_persona = self.report_template.get("report_persona")
@@ -133,7 +169,7 @@ class Report:
                 })
 
             # Generate the section
-            response = self.ai.request_completion(messages=messages, model=self.model, temperature=self.temperature)
+            response = self.ai.request_completion(messages=messages, model=self.report_gen_model)
 
             # Add the generated section to drafted_sections
             drafted_sections.append({
@@ -165,7 +201,7 @@ class Report:
                     section_brief=delayed_section["prompt"]
                 )
             })
-            response = self.ai.request_completion(messages=messages)
+            response = self.ai.request_completion(messages=messages, model=self.report_gen_model)
             
             # Insert the delayed section at its original position
             drafted_sections.insert(delayed_section_index, {

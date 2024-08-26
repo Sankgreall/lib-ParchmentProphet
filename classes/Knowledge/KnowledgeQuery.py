@@ -74,8 +74,45 @@ class KnowledgeQuery:
         self.completed_questionnaire = {}
         self.ai_handler = AIHandler.load()
 
+        # MODELS
+        self.latest_models = self.get_latest_models()
+        self.report_gen_model = self.latest_models.get("report_gen_model","gpt-4o-2024-08-06")
+        self.claim_answer_model = self.latest_models.get("claim_answer_model","gpt-4o-2024-08-06")
+        self.graph_model = self.latest_models.get("graph_model","gpt-4o-2024-08-06")
+        self.claim_model = self.latest_models.get("claim_model","gpt-4o-2024-08-06")
+
         self.claim_training =[]
         self.training_index = "prod-answer-training"
+
+    def get_latest_models(self):
+        try:
+            query = {
+                "sort": [
+                    {"created": {"order": "desc"}}
+                ],
+                "size": 1
+            }
+            result = search_es(self.MODELS_INDEX, query)
+            
+            if result["hits"]["total"]["value"] > 0:
+                results = result["hits"]["hits"][0]["_source"]
+                return results
+            else:
+                # return default
+                return {
+                    "report_gen_model": "gpt-4o-2024-08-06",
+                    "claim_answer_model": "gpt-4o-2024-08-06",
+                    "graph_model": "gpt-4o-2024-08-06",
+                    "claim_model": "gpt-4o-2024-08-06",
+                }
+        except Exception:
+            # return default
+            return {
+                "report_gen_model": "gpt-4o-2024-08-06",
+                "claim_answer_model": "gpt-4o-2024-08-06",
+                "graph_model": "gpt-4o-2024-08-06",
+                "claim_model": "gpt-4o-2024-08-06",
+            }
 
     def set_seed(self, seed):
         random.seed(seed)
@@ -151,7 +188,7 @@ class KnowledgeQuery:
             user_prompt = textwrap.dedent(answer_claim_user_prompt).strip().format(question=question['question'], documents=claims_string)
 
             # Request completion from the AI
-            answer = self.ai_handler.request_completion(system_prompt, user_prompt)
+            answer = self.ai_handler.request_completion(system_prompt, user_prompt, model=self.claim_answer_model)
             self.completed_questionnaire[question['question']] = answer
 
             # Add to training data

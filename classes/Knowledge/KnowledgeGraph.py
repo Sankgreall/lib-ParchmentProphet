@@ -62,8 +62,45 @@ class KnowledgeGraph:
 
         self.entities_string = self.get_entity_list()
 
+        # MODELS
+        self.latest_models = self.get_latest_models()
+        self.report_gen_model = self.latest_models.get("report_gen_model","gpt-4o-2024-08-06")
+        self.claim_answer_model = self.latest_models.get("claim_answer_model","gpt-4o-2024-08-06")
+        self.graph_model = self.latest_models.get("graph_model","gpt-4o-2024-08-06")
+        self.claim_model = self.latest_models.get("claim_model","gpt-4o-2024-08-06")
+
         self.graph_training_index = "prod-graph-training"
         self.claim_training_index = "prod-claim-training"
+
+    def get_latest_models(self):
+        try:
+            query = {
+                "sort": [
+                    {"created": {"order": "desc"}}
+                ],
+                "size": 1
+            }
+            result = search_es(self.MODELS_INDEX, query)
+            
+            if result["hits"]["total"]["value"] > 0:
+                results = result["hits"]["hits"][0]["_source"]
+                return results
+            else:
+                # return default
+                return {
+                    "report_gen_model": "gpt-4o-2024-08-06",
+                    "claim_answer_model": "gpt-4o-2024-08-06",
+                    "graph_model": "gpt-4o-2024-08-06",
+                    "claim_model": "gpt-4o-2024-08-06",
+                }
+        except Exception:
+            # return default
+            return {
+                "report_gen_model": "gpt-4o-2024-08-06",
+                "claim_answer_model": "gpt-4o-2024-08-06",
+                "graph_model": "gpt-4o-2024-08-06",
+                "claim_model": "gpt-4o-2024-08-06",
+            }
 
     def process(self):
         # Preprocess documents
@@ -486,7 +523,7 @@ class KnowledgeGraph:
             previous_chunk=previous_chunk
         )
 
-        entities = self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True)
+        entities = self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True, model=self.graph_model)
 
         # Store data for training
         training_data = {
@@ -528,7 +565,7 @@ class KnowledgeGraph:
         )
 
         try:
-            claims = self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True)
+            claims = self.ai_handler.request_completion(system_prompt, user_prompt, json_output=True, model=self.claim_model)
 
             # Store data for training
             training_data = {
