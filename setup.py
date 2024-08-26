@@ -19,6 +19,14 @@ setup(
         'openpyxl',
         'xlrd',
         'neo4j',
-        'transformers'
+        'transformers',
+        'numpy',               
+        'pandas',              
+        'syllapy',             
+        'textstat',            
+        'networkx',            
+        'torch',               
+        'cryptography==41.0.7',
+        'pdf2image'            
     ],
 )
