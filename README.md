@@ -8,7 +8,7 @@ There are four key features of this library.
 
 - **Graph Extraction**. Although ParchmentProphet has not implemented full GraphRAG (for reasons that make it unsuitable for report generation), it is capable of performing full entity and relationship extraction.
 
-- **Research Questions**. ParchmentProphet builds upon the concept of Claims (discussed here) to focus them more on assessing bias and then condensing them to answer specific research questions that must be posed in advance of indexing. In this way, we can retrieve a high-fidelity answer with low-knowledge loss that RAG approaches would struggle to match.
+- **Research Questions**. ParchmentProphet builds upon the concept of Claims (discussed in Microsoft's GraphRAG article [here](https://microsoft.github.io/graphrag/posts/index/1-default_dataflow/)) to focus them more on assessing bias and then condensing them to answer specific research questions that must be posed in advance of indexing. In this way, we can retrieve a high-fidelity answer with low-knowledge loss that RAG approaches would struggle to match.
 
 - **Fine-Tuning**. Four AI models are currently used by the project. Although they default to gpt-4o, each model can be fine-tuned to develop their specialisms. For example, the Graph and Claim extraction models can be fine-tuned on top of a gpt-4o-mini base model.
 
