@@ -6,7 +6,7 @@ import textwrap
 import hashlib
 import yaml
 from collections import OrderedDict
-
+from datetime import datetime, timezone
 
 # Import text functions
 try:
@@ -393,7 +393,11 @@ class KnowledgeGraph:
         with open(document['markdown_path'], "r", encoding="utf-8") as file:
             document_text = file.read()
 
-        system_prompt = textwrap.dedent(document_summary_system_prompt).strip().replace("{metadata}", json.dumps(document['document_metadata'], indent=4)).replace("{scope}", self.report_scope)
+        # Get UTC date in YYYY-MM-DD format
+        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+        # Construct the system prompt
+        system_prompt = textwrap.dedent(document_summary_system_prompt).strip().replace("{metadata}", json.dumps(document['document_metadata'], indent=4)).replace("{scope}", self.report_scope).replace("{date}", date)
 
         summary = json.loads(self.ai_handler.recursive_summary(system_prompt, document_text, json_output=True))
         return summary

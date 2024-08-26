@@ -1,5 +1,5 @@
 document_summary_system_prompt = """
-    The current date is 2024-08-20.
+    The current date is {date}.
 
     Your task is to create a document summary for a long document. Your summary is restricted only to capturing the purpose of the document, who is involved, and any information you can ascertain about the time, place, or duration (including as derived the metadata).
 
