@@ -75,6 +75,29 @@ def get_all_entities(project_id):
         """, project_id=project_id)
         return {record["name"]: record["type"] for record in result}
     
+def get_node_details(project_id, node_name):
+    with driver.session() as session:
+        result = session.run("""
+            MATCH (n:Entity {name: $node_name, project_id: $project_id})
+            OPTIONAL MATCH (n)-[r1:RELATED_TO]->(out)
+            OPTIONAL MATCH (in)-[r2:RELATED_TO]->(n)
+            RETURN n.name AS name, n.type AS type, n.description AS description,
+                   collect(DISTINCT {type: type(r1), target: out.name}) AS outgoing_relationships,
+                   collect(DISTINCT {type: type(r2), source: in.name}) AS incoming_relationships
+        """, node_name=node_name, project_id=project_id)
+        
+        record = result.single()
+        if not record:
+            return None
+        
+        return {
+            'name': record['name'],
+            'type': record['type'],
+            'description': record['description'],
+            'outgoing_relationships': record['outgoing_relationships'],
+            'incoming_relationships': record['incoming_relationships']
+        }
+    
 #############################################################
 # CRUD FUNCTIONS
 #############################################################
