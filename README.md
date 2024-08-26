@@ -2,6 +2,8 @@
 
 ParchmentProphet is a Proof-of-Concept application designed to demonstrate report generation capabilities. This repository is the core library backing the full application.
 
+More documentation and supporting content will be available soon.
+
 # Features
 
 There are four key features of this library.
