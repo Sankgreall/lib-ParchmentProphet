@@ -25,6 +25,7 @@ except ImportError:
         from modules.text import *
         from modules.markdown import *
 
+
 class OpenAIHandler:
     
     def __init__(self, api_key=None, max_output_tokens=None, max_context_tokens=None, default_model=None):

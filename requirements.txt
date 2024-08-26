@@ -18,7 +18,6 @@ syllapy
 textstat
 matplotlib
 scipy
-spacy
 networkx
 torch
 cryptography==41.0.7

@@ -4,10 +4,6 @@ class DocumentHandler(abc.ABC):
     def __init__(self, file_path):
         self.file_path = file_path
 
-    @abc.abstractmethod
-    def transcribe(self):
-        pass
-
     @classmethod
     def load(cls, file_path):
             if file_path.endswith('.pdf'):

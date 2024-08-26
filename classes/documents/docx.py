@@ -87,8 +87,7 @@ class DOCXHandler(DocumentHandler):
             output = self.wrapper.run_redline(author, self.file_path, temp_file.name)
             with open(self.file_path, 'wb') as f:
                 f.write(output[0])
-
-
+                
     def insert_text_at_placeholder(self, placeholder, markdown_text, custom_style=None, custom_color=None, style_mapping=None):
         # Convert Markdown to paragraphs
         paragraphs = self._convert_markdown_to_paragraphs(markdown_text, custom_style, style_mapping)
@@ -161,7 +160,7 @@ class DOCXHandler(DocumentHandler):
                 return True
 
         return False
-
+      
     def _convert_markdown_to_paragraphs(self, markdown_text, custom_style=None, style_mapping=None):
         if style_mapping is None:
             style_mapping = {

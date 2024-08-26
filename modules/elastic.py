@@ -38,6 +38,7 @@ def search_es(index_name, query):
 def update_document(index_name, document_id, updated_fields):
     es.update(index=index_name, id=document_id, body={"doc": updated_fields})
 
+
 def get_document_by_id(index_name, document_id):
     """
     Retrieve a document by its _id from the specified index.
@@ -72,3 +73,4 @@ def bulk_delete_by_query(index_name, query):
     :return: A dictionary containing the deletion results
     """
     return es.delete_by_query(index=index_name, body=query)
+

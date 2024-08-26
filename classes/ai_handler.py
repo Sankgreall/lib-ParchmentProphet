@@ -33,5 +33,8 @@ class AIHandler(abc.ABC):
         if ai_provider.lower() == 'openai':
             from .ai.openai import OpenAIHandler
             return OpenAIHandler()
+        elif ai_provider.lower() == 'anthropic':
+            from .ai.anthropic import AnthropicHandler
+            return AnthropicHandler()
         else:
             raise ValueError("Unsupported AI provider")

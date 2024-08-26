@@ -3,7 +3,6 @@ import tempfile
 import pdfminer.high_level
 from pdfminer.layout import LAParams
 from pdf2image import convert_from_path
-import pytesseract
 import io
 import base64
 
@@ -16,7 +15,7 @@ try:
     from ....modules.text import *
 except ImportError:
     # Fallback to absolute imports for local testing
-    from modules.text import *
+    from ParchmentProphet.modules.text import *
 
 ai = AIHandler.load()
 
