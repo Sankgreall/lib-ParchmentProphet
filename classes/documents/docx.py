@@ -87,8 +87,7 @@ class DOCXHandler(DocumentHandler):
             output = self.wrapper.run_redline(author, self.file_path, temp_file.name)
             with open(self.file_path, 'wb') as f:
                 f.write(output[0])
-        
-
+                
     def insert_text_at_placeholder(self, placeholder, markdown_text, custom_style=None, custom_color=None, style_mapping=None):
         # Convert Markdown to paragraphs
         paragraphs = self._convert_markdown_to_paragraphs(markdown_text, custom_style, style_mapping)
@@ -125,6 +124,43 @@ class DOCXHandler(DocumentHandler):
 
         return False
     
+    def insert_table_at_placeholder(self, placeholder, data_array, table_style='Table Grid'):
+        for paragraph in self.document.paragraphs:
+            if placeholder in paragraph.text:
+                # Replace the placeholder with an empty string
+                paragraph.text = paragraph.text.replace(placeholder, '')
+                
+                # Keep track of where to insert
+                current_element = paragraph._element
+
+                # Insert content after this paragraph
+                for item in data_array:
+                    # Add title
+                    title_paragraph = self.document.add_paragraph(item['title'])
+                    title_paragraph.style = self.document.styles['Heading 2']
+                    current_element.addnext(title_paragraph._element)
+                    current_element = title_paragraph._element
+                    
+                    # Create table
+                    table = self.document.add_table(rows=1, cols=2)
+                    table.style = table_style
+                    
+                    # Add key-value pairs to the table
+                    for key, value in item.items():
+                        if key != 'title':
+                            row_cells = table.add_row().cells
+                            row_cells[0].text = str(key)
+                            row_cells[1].text = str(value)
+                    
+                    # Insert table after the title
+                    current_element.addnext(table._element)
+                    current_element = table._element
+
+                self.document.save(self.file_path)
+                return True
+
+        return False
+      
     def _convert_markdown_to_paragraphs(self, markdown_text, custom_style=None, style_mapping=None):
         if style_mapping is None:
             style_mapping = {

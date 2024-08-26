@@ -52,47 +52,63 @@ def load_prompt(input_file_path, replacement_dict={}):
     
     return content
 
-
 def count_tokens(str, model="gpt-4"):
     # Get token encoding for GPT-4
     enc = tiktoken.encoding_for_model(model)
     return len(enc.encode(str))
 
+def find_best_break_point(text, max_index):
+    # Define regex pattern for break points
+    break_pattern = re.compile(r'\n\n|\n|[.!?]|[;:]|,|\s')
+    
+    # Search for break points, starting from max_index and moving backwards
+    for match in reversed(list(break_pattern.finditer(text[:max_index]))):
+        return match.start()
+    
+    # If no break point found, return max_index
+    return max_index
 
 def chunk_large_text(text, token_limit):
-    current_chunk = ""  # Temporary storage for the current chunk
-    
-    for line in text.splitlines():  # Keep the original lines intact
-        if not line:  # Skip empty lines
+    current_chunk = ""
+    start_loc = 0
+
+    for line in text.splitlines():
+        if not line:
             continue
         
-        # Consider adding this line to the current chunk
-        if current_chunk:
-            temp_chunk = current_chunk + "\n" + line
-        else:
-            temp_chunk = line
-
-        token_count = count_tokens(temp_chunk)  # Count tokens in the temp chunk
+        temp_chunk = current_chunk + "\n" + line if current_chunk else line
+        token_count = count_tokens(temp_chunk)
         
-        if token_count > token_limit:  # If adding this line exceeds the limit
-            # Join current_chunk into a string to find the last period
-            current_chunk_text = current_chunk
-            last_period_index = current_chunk_text.rfind('.')  # Assign before referencing
-            
-            if last_period_index != -1:  # If there's a period, split at the period
-                # Yield the chunk up to the last period
-                yield current_chunk_text[:last_period_index + 1].strip()
-                # Restart the current chunk with content after the period and the new line
-                current_chunk = current_chunk_text[last_period_index + 1:].strip() + "\n" + line
-            else:  # If no period, yield the current chunk and start a new one
-                yield current_chunk_text.strip()
+        if token_count > token_limit:
+            if not current_chunk:
+                # If a single line exceeds the token limit, split it
+                break_index = find_best_break_point(line, len(line))
+                yield {
+                    "content": line[:break_index].strip(),
+                    "start_loc": start_loc,
+                    "end_loc": start_loc + break_index
+                }
+                start_loc += break_index
+                current_chunk = line[break_index:].strip()
+            else:
+                # Yield the current chunk before it exceeds the limit
+                yield {
+                    "content": current_chunk.strip(),
+                    "start_loc": start_loc,
+                    "end_loc": start_loc + len(current_chunk)
+                }
+                start_loc += len(current_chunk)
                 current_chunk = line
-        else:  # If the token count is within the limit
-            current_chunk = temp_chunk  # Update the current chunk with the new line
-
-    # Yield any remaining text in the last chunk
-    if current_chunk.strip():
-        yield current_chunk.strip()
+        else:
+            current_chunk = temp_chunk
+    
+    # Yield the last chunk if there's any content left
+    if current_chunk:
+        yield {
+            "content": current_chunk.strip(),
+            "start_loc": start_loc,
+            "end_loc": start_loc + len(current_chunk)
+        }
 
 def get_first_n_tokens(text, n_tokens):
     current_chunk = ""

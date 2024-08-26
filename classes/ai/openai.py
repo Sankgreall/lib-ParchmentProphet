@@ -7,17 +7,24 @@ from PIL import Image
 import io
 import base64
 from io import BytesIO
+import time
 
 
 # Import text functions
 try:
     # Try relative imports for deployment
-    from ....modules.text import *
-    from ....modules.markdown import *
+    from ..modules.text import *
+    from ..modules.markdown import *
 except ImportError:
-    # Fallback to absolute imports for local testing
-    from ParchmentProphet.modules.text import *
-    from ParchmentProphet.modules.markdown import *
+    try:
+        # Fallback to absolute imports with project name for structured imports
+        from ParchmentProphet.modules.text import *
+        from ParchmentProphet.modules.markdown import *
+    except ImportError:
+        # Fallback to simple absolute imports for local testing
+        from modules.text import *
+        from modules.markdown import *
+
 
 class OpenAIHandler:
     
@@ -30,8 +37,21 @@ class OpenAIHandler:
         self.max_context_tokens = max_context_tokens or int(os.getenv("OPENAI_MAX_CONTEXT_TOKENS", 126000))
         self.default_model = default_model or os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o")
 
+        self.supported_for_training = [
+            "gpt-3.5-turbo", 
+            "gpt-4o", 
+            "gpt-4o-mini",
+            "gpt-4o-2024-08-06"
+        ]
+
         # Initialize the OpenAI
         self.client = OpenAI(api_key=self.api_key)
+
+    def get_max_output_tokens(self):
+        return self.max_output_tokens
+    
+    def get_max_context_tokens(self):
+        return self.max_context_tokens
 
     
     def request_completion(self, system_prompt="", prompt="", model=None, messages = [], temperature=0.2, top_p=None, max_tokens=None, json_output=False, image=None):
@@ -234,9 +254,9 @@ class OpenAIHandler:
         return title_structure_memory
     
     # Take a document exceeding max token limit and recursively summarise it
-    def recursive_summary(self, system_prompt, data, temperature=0.2, model=None):
+    def recursive_summary(self, system_prompt, data, temperature=0.2, model=None, json_output=False):
 
-        chunk_size = int(os.getenv("MAX_CONTEXT_TOKENS")) - (int(os.getenv("MAX_OUTPUT_TOKENS")) * 2) # One for output, one for previous summary
+        chunk_size = self.max_context_tokens - (self.max_output_tokens * 2) # One for output, one for previous summary
         first_iteration = True
 
         for chunk in chunk_large_text(data, chunk_size):
@@ -245,7 +265,7 @@ class OpenAIHandler:
             if first_iteration:
                 messages = [
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": chunk}
+                    {"role": "user", "content": chunk['content']}
                 ]
                 first_iteration = False
 
@@ -253,89 +273,13 @@ class OpenAIHandler:
                 messages = [
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": f"Document summary so far\n----\n{output}"},
-                    {"role": "user", "content": f"Next document chunk\n----\n{chunk}"}
+                    {"role": "user", "content": f"Next document chunk\n----\n{chunk['content']}"}
                 ]
 
-            output = self.request_completion(messages=messages, temperature=temperature, model=model if model else self.default_model)
+            output = self.request_completion(messages=messages, temperature=temperature, model=model if model else self.default_model, json_output=True)
 
         return output
 
-    def complete_questionnaire(self, system_prompt, prompt_path, questions, input_files):
-
-        # Check questions variable is an array of dictionary objects containing keys
-        # - question
-        # - answer
-        # - category
-        # - example_answer
-        for question in questions:
-            if "question" not in question or "answer" not in question or "category" not in question or "example_answer" not in question:
-                raise ValueError("Questions array must contain question, answer, category, and example_answer keys.")
-        
-        # For each question
-        for question in questions:
-
-            # Keep track of the answer we construct over time
-            partial_answer = ""
-            final_answer = ""
-
-            # Check for other questions in the same category with final answers
-            related_answers = ""
-            for other_question in questions:
-                if other_question["category"] == question["category"] and other_question["answer"]:
-                    related_answers += f"Question: {other_question['question']}\nAnswer: {other_question['answer']}\n\n"
-
-            # Answer the question, looking across all input files
-            for input_file in input_files:
-
-                # Read the input file (must be markdown or text)
-                with open(input_file, 'r', encoding='utf-8') as file:
-                    data = file.read()
-
-                prompt_tokens = load_prompt(prompt_path, {"data": "", "partial_answer": "", "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
-                content_tokens = count_tokens(data) + count_tokens(prompt_tokens) + 200 # 200 for partial answer placeholder
-
-                # Check if data exceeds token limit
-                if content_tokens > self.max_context_tokens + self.max_output_tokens:
-
-                    # Chunk it up
-                    for chunk in chunk_large_text(data, (self.max_context_tokens - self.max_output_tokens - (prompt_tokens - 200))): # 200 for partial answer placeholder
-
-                        # If partial answer is not empty, we need to add it to the prompt
-                        if partial_answer:
-                            partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below based on a review of other data. Consider this answer as a baseline for you to expand or challenge as you review this additional data.\n\nPartial answer: {partial_answer}\n\n----\n\n"
-                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": partial_answer_prompt, "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
-                        else:
-                            prompt = load_prompt(prompt_path, {"data": chunk, "partial_answer": "", "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
-                        
-                        response = self.request_completion(system_prompt, prompt, json_output=True)
-                        response = json.loads(response)
-
-                        # If we received a response, set it as the partial answer
-                        if response["answer"]:
-                            partial_answer = response["answer"]
-                    
-                # Else, we can just use the data as is
-                else:
-                    # If partial answer is not empty, we need to add it to the prompt
-                    if partial_answer:
-                        partial_answer_prompt = f"# PARTIAL ANSWER\n\nThere is a partial answer to the question below. You must accept this partial answer as truthful and seek to expand, enrich, or further complete it.\n\nPartial answer: {partial_answer}\n\n----\n\n"
-                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": partial_answer_prompt, "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
-                    else:
-                        prompt = load_prompt(prompt_path, {"data": data, "partial_answer": "", "related_answers": related_answers, "question": question["question"], "example_answer": question["example_answer"]})
-
-                    response = self.request_completion(system_prompt, prompt, json_output=True)
-                    response = json.loads(response)
-
-                    # If we received a response, set it as the partial answer
-                    if response["answer"]:
-                        partial_answer = response["answer"]
-
-            # Once we have the final answer, add it to the question object
-            final_answer = partial_answer
-            question["answer"] = final_answer
-
-        return questions
-    
     def vectorise(self, texts, model="text-embedding-3-small"):
         """
         Converts a given text string or an array of text strings into their corresponding embedding vectors using the OpenAI embeddings API.
@@ -353,3 +297,103 @@ class OpenAIHandler:
         texts = [text.replace("\n", " ") for text in texts]
         response = self.client.embeddings.create(input=texts, model=model)
         return [data.embedding for data in response.data]
+            
+    def fine_tune_model(self, training_file_path, base_model="gpt-4o", suffix=None, hyperparameters=None, timeout=3600):
+        """
+        Fine-tunes a model using the provided training file.
+
+        Args:
+            training_file_path (str): Path to the training file (should be a JSONL file).
+            base_model (str): The base model to fine-tune. Defaults to "gpt-4o".
+            suffix (str, optional): A string of up to 40 characters that will be added to your fine-tuned model name.
+            hyperparameters (dict, optional): Hyperparameters for fine-tuning.
+            timeout (int): Maximum time in seconds to wait for fine-tuning to complete. Defaults to 3600 (1 hour).
+
+        Returns:
+            dict: A dictionary containing the status of the fine-tuning job and additional information.
+
+        Raises:
+            ValueError: If the base model is not supported for fine-tuning.
+        """
+        
+        if base_model not in self.supported_for_training:
+            raise ValueError(f"Base model {base_model} is not supported for fine-tuning.")
+        
+        # Count the number of lines in the file
+        num_lines = sum(1 for line in open(training_file_path))
+        if num_lines < 10:
+            raise ValueError("Insufficient training data. At least 10 samples are required for fine-tuning.")
+        
+        result = {
+            "status": "unknown",
+            "model": None,
+            "error": None,
+            "details": {}
+        }
+
+        # Upload the training file
+        try:
+            with open(training_file_path, "rb") as file:
+
+
+
+                file_upload = self.client.files.create(file=file, purpose="fine-tune")
+            print(f"Training file uploaded with ID: {file_upload.id}")
+            result["details"]["file_id"] = file_upload.id
+        except Exception as e:
+            result["status"] = "failed"
+            result["error"] = f"File upload failed: {str(e)}"
+            return result
+
+        try:
+            # Create fine-tuning job
+            job_params = {
+                "training_file": file_upload.id,
+                "model": base_model
+            }
+            if suffix:
+                job_params["suffix"] = suffix
+            if hyperparameters:
+                job_params["hyperparameters"] = hyperparameters
+
+            fine_tuning_job = self.client.fine_tuning.jobs.create(**job_params)
+            result["details"]["job_id"] = fine_tuning_job.id
+            print(f"Fine-tuning job created with ID: {fine_tuning_job.id}")
+
+            # Wait for the fine-tuning job to complete or timeout
+            start_time = time.time()
+            while True:
+                job_status = self.client.fine_tuning.jobs.retrieve(fine_tuning_job.id)
+                print(f"Fine-tuning status: {job_status.status}")
+                result["status"] = job_status.status
+                
+                if job_status.status == "succeeded":
+                    print("Fine-tuning completed successfully!")
+                    result["model"] = job_status.fine_tuned_model
+                    return result
+                elif job_status.status == "failed":
+                    result["error"] = "Fine-tuning failed. Check job details for more information."
+                    result["details"]["job_details"] = job_status
+                    return result
+                
+                if time.time() - start_time > timeout:
+                    result["status"] = "timeout"
+                    result["error"] = f"Fine-tuning timed out after {timeout} seconds."
+                    return result
+                
+                time.sleep(60)  # Wait for 60 seconds before checking again
+
+        except Exception as e:
+            result["status"] = "error"
+            result["error"] = f"An unexpected error occurred: {str(e)}"
+            print(result)
+            return False
+        finally:
+            # Delete the training file
+            try:
+                self.client.files.delete(file_upload.id)
+                print(f"Training file with ID {file_upload.id} has been deleted.")
+            except Exception as delete_error:
+                print(f"Failed to delete training file: {str(delete_error)}")
+
+        return result

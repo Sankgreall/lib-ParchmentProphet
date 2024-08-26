@@ -18,17 +18,19 @@ setup(
         'Elasticsearch',
         'openpyxl',
         'xlrd',
-        'numpy',
-        'pandas',
-        'scikit-learn',
-        'syllapy',
-        'textstat',
-        'matplotlib',
-        'scipy',
-        'networkx',
+        'neo4j',
+        'transformers',
+        'numpy',               
+        'pandas',              
+        'syllapy',             
+        'textstat',            
+        'networkx',            
+        'torch',               
         'cryptography==41.0.7',
-        'pdf2image',
-        'tenacity'
+        'pdf2image'            
+    ],
+)
+
     ],
     entry_points={
         'console_scripts': [

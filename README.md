@@ -1,84 +1,61 @@
 # ParchmentProphet
 
-ParchmentProphet is a utility library designed to assist with parsing unstructured file data, constructing prompts for LLMs, and deriving insights from your AI generated content. 
+ParchmentProphet is a Proof-of-Concept application designed to demonstrate report generation capabilities. This repository is the core library backing the full application.
 
-A rudimentry UI showcasing ParchmentProphet's ability to model the effectiveness of your AI generated content is available here:
+More documentation and supporting content will be available soon.
 
-- Demo site: https://parchmentprophet-ca.bravesea-a3cf7791.uksouth.azurecontainerapps.io/
+# Features
 
-- Repo: https://github.com/Sankgreall/ParchmentProphet-ui
+There are four key features of this library.
 
-# Functionality
+- **Graph Extraction**. Although ParchmentProphet has not implemented full GraphRAG (for reasons that make it unsuitable for report generation), it is capable of performing full entity and relationship extraction.
 
-ParchmentProphet offers a range of powerful functionalities:
+- **Research Questions**. ParchmentProphet builds upon the concept of Claims (discussed in Microsoft's GraphRAG article [here](https://microsoft.github.io/graphrag/posts/index/1-default_dataflow/)) to focus them more on assessing bias and then condensing them to answer specific research questions that must be posed in advance of indexing. In this way, we can retrieve a high-fidelity answer with low-knowledge loss that RAG approaches would struggle to match.
 
-- Document Handling: Extract text from various file formats (PDF, DOCX, XLSX, TXT) and convert them into a universal markdown format that can be used to prompt LLMs.
+- **Fine-Tuning**. Four AI models are currently used by the project. Although they default to gpt-4o, each model can be fine-tuned to develop their specialisms. For example, the Graph and Claim extraction models can be fine-tuned on top of a gpt-4o-mini base model.
 
-- Text Evaluation: Analyse text for readability, lexical diversity, syntactic complexity, and other linguistic features. Use this to compare human-generated and AI-generated text samples to identify similarities and differences.
+- **Templated Output**. ParchmentProphet divides reports into sections and generates them incrementally. This means you can exceed the output token limits and receive structured outputs that can be recombined into a single document.
 
-- Elasticsearch Integration: Store and retrieve processed documents efficiently using Elasticsearch.
+# Installation
 
-## Usage Examples
+1. Clone the repository
 
-### Document Summarisation
-
-```python 
-from ParchmentProphet.classes.document_handler import DocumentHandler
-from ParchmentProphet.classes.ai_handler import AIHandler
-
-# Load a PDF document
-doc_handler = DocumentHandler.load("path/to/document.pdf")
-# Transcribe the PDF into markdown
-transcribed_text = doc_handler.transcribe()
-
-# Load the AIHandler (defaults to OpenAI)
-ai_handler = AIHandler.load()
-
-# recursive_summary will work even when the PDF contents exceeds the max_tokens
-# available in your LLM. It does this by dynamically chunking the content and 
-# summarising chunks in increments.
-summary = ai_handler.recursive_summary(system_prompt, transcribed_text)
-
-print(summary)
+```
+git clone https://github.com/your-username/ParchmentProphet
+cd ParchmentProphet
 ```
 
-### Compare Human and AI-Generated Text
+2. Create and activate a virtual environmnets (recommended)
 
-```python
-from ParchmentProphet.modules.evaluate import compare_samples_nd
-
-samples = [
-    {
-        "human_generated": "Human-written text here...",
-        "ai_generated": "AI-generated text here..."
-    },
-    # Add more sample pairs as needed
-]
-
-# Compute the average Euclidian distance between language features
-linguistic_scores, linguistic_distance = compare_samples_nd(samples)
-
-# Print the average distance for the model (all samples)
-print("Linguistic Distance:", linguistic_distance)
-
-# Print the feature calculations for all samples
-print(linguistic_scores)
+```
+python -m venv venv
+source venv/bin/activate
 ```
 
-## Installation
+Or for Windows:
 
-To install ParchmentProphet, you can use pip:
 ```
-pip install git+https://github.com/your-username/ParchmentProphet.git
+python -m venv venv
+.\venv\Scripts\activate
 ```
 
-Make sure to set up the required environment variables as specified in the env.sample file.
+3. Install dependencies
 
-## Roadmap
+```
+pip install .
+```
 
-Our vision for ParchmentProphet includes several exciting enhancements and new features. Here's what we're planning for future releases:
+4. Copy .env.sample and populate your .env
 
-- [ ] Integrate support for Anthropic and Gemini APIs 
-- [ ] Incorporate AI vision for documents that contain embedded images
-- [ ] Implement batch processing for large document sets
-- [ ] Create full library documentation
+# Prerequisites
+
+In addition to the required packages, you will also require:
+
+- A Neo4j instance
+- An Elastic instance
+- An OpenAI API key
+- Pandoc
+
+# License
+
+ParchmentProphet is released under the MIT License.

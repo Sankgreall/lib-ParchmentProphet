@@ -23,6 +23,10 @@ class AIHandler(abc.ABC):
     @abc.abstractmethod
     def vectorise(self, texts, model):
         pass
+    
+    @abc.abstractmethod
+    def fine_tune_model(self, training_file_path, base_model="gpt-4o", suffix=None, hyperparameters=None, timeout=3600):
+        pass
 
     @classmethod
     def load(cls, ai_provider='openai'):
