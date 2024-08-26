@@ -1,22 +1,20 @@
 # ParchmentProphet
 
-ParchmentProphet is a Proof-of-Concept application designed to demonstrate report generation capabilities. 
-
-This repository is the core library backing the full application.
+ParchmentProphet is a Proof-of-Concept application designed to demonstrate report generation capabilities. This repository is the core library backing the full application.
 
 # Features
 
 There are four key features of this library.
 
-- **Graph Extract**. Although ParchmentProphet has not implemented full GraphRAG (for reasons that make it unsuitable for report generation), it is capable of performing full entity and relationship extraction.
+- **Graph Extraction**. Although ParchmentProphet has not implemented full GraphRAG (for reasons that make it unsuitable for report generation), it is capable of performing full entity and relationship extraction.
 
-- **Research Questions**. ParchmentProphet builds upon the concept of Claims (discussed here) to focus them more on assessing bias, and then condensing them to answer specific research questions that must be posed in advance of indexing. In this way, we can retrieve a high-fidelity answer with low-knowledge loss that RAG approaches would struggle to match.
+- **Research Questions**. ParchmentProphet builds upon the concept of Claims (discussed here) to focus them more on assessing bias and then condensing them to answer specific research questions that must be posed in advance of indexing. In this way, we can retrieve a high-fidelity answer with low-knowledge loss that RAG approaches would struggle to match.
 
-- **Fine-Tuning**. Four AI models are currently used by the project. Although they default to gpt-4o, each model can be fine-tuned to develop their specalisms. For example, the Graph and Claim extraction models can be fine-tuned on top of a gpt-4o-mini base model.
+- **Fine-Tuning**. Four AI models are currently used by the project. Although they default to gpt-4o, each model can be fine-tuned to develop their specialisms. For example, the Graph and Claim extraction models can be fine-tuned on top of a gpt-4o-mini base model.
 
-- **Templated Output**. ParchmentProphet divides reports into sections, and generates them incrementally. This means you can exceed the output token limits and recieve structued outputs that can be re-combined into a single document.
+- **Templated Output**. ParchmentProphet divides reports into sections and generates them incrementally. This means you can exceed the output token limits and receive structured outputs that can be recombined into a single document.
 
-# Installaton
+# Installation
 
 1. Clone the repository
 
@@ -55,3 +53,7 @@ In addition to the required packages, you will also require:
 - An Elastic instance
 - An OpenAI API key
 - Pandoc
+
+# License
+
+ParchmentProphet is released under the MIT License.
