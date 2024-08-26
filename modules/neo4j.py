@@ -82,8 +82,8 @@ def get_node_details(project_id, node_name):
             OPTIONAL MATCH (n)-[r1:RELATED_TO]->(out)
             OPTIONAL MATCH (in)-[r2:RELATED_TO]->(n)
             RETURN n.name AS name, n.type AS type, n.description AS description,
-                   collect(DISTINCT {type: type(r1), target: out.name}) AS outgoing_relationships,
-                   collect(DISTINCT {type: type(r2), source: in.name}) AS incoming_relationships
+                   collect(DISTINCT {description: r1.description, target: out.name}) AS outgoing_relationships,
+                   collect(DISTINCT {description: r2.description, source: in.name}) AS incoming_relationships
         """, node_name=node_name, project_id=project_id)
         
         record = result.single()
@@ -94,8 +94,8 @@ def get_node_details(project_id, node_name):
             'name': record['name'],
             'type': record['type'],
             'description': record['description'],
-            'outgoing_relationships': record['outgoing_relationships'],
-            'incoming_relationships': record['incoming_relationships']
+            'outgoing_relationships': [r for r in record['outgoing_relationships'] if r['target'] is not None],
+            'incoming_relationships': [r for r in record['incoming_relationships'] if r['source'] is not None]
         }
     
 #############################################################
