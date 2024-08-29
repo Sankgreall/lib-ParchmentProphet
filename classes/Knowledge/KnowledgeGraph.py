@@ -6,7 +6,7 @@ import textwrap
 import hashlib
 import yaml
 from collections import OrderedDict
-from datetime import datetime, timezone
+import datetime as dt
 
 # Import text functions
 try:
@@ -87,20 +87,10 @@ class KnowledgeGraph:
                 return results
             else:
                 # return default
-                return {
-                    "report_gen_model": "gpt-4o-2024-08-06",
-                    "claim_answer_model": "gpt-4o-2024-08-06",
-                    "graph_model": "gpt-4o-2024-08-06",
-                    "claim_model": "gpt-4o-2024-08-06",
-                }
+                return None
         except Exception:
             # return default
-            return {
-                "report_gen_model": "gpt-4o-2024-08-06",
-                "claim_answer_model": "gpt-4o-2024-08-06",
-                "graph_model": "gpt-4o-2024-08-06",
-                "claim_model": "gpt-4o-2024-08-06",
-            }
+            return None
 
     def process(self):
         # Preprocess documents
@@ -431,7 +421,8 @@ class KnowledgeGraph:
             document_text = file.read()
 
         # Get UTC date in YYYY-MM-DD format
-        date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        date = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
+
 
         # Construct the system prompt
         system_prompt = textwrap.dedent(document_summary_system_prompt).strip().replace("{metadata}", json.dumps(document['document_metadata'], indent=4)).replace("{scope}", self.report_scope).replace("{date}", date)

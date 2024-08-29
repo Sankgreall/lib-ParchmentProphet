@@ -30,12 +30,3 @@ setup(
         'pdf2image'            
     ],
 )
-
-    ],
-    entry_points={
-        'console_scripts': [
-            'spacy_en_download = spacy.cli:download',
-        ],
-    },
-)
-
