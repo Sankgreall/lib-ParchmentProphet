@@ -149,6 +149,11 @@ class OpenAIHandler:
 
         # Make the request
         response = self.client.chat.completions.create(messages=messages, **settings)
+
+        # Check if the output was truncated due to length
+        if response.choices[0].finish_reason == "length":
+            raise ValueError("The model's output was truncated due to length constraints. Consider increasing max_tokens or simplifying your request.")
+
         content = sanitise_text(response.choices[0].message.content)
 
         if json_output:
@@ -158,6 +163,11 @@ class OpenAIHandler:
             except JSONDecodeError:
                 # If the first attempt fails, try one more time
                 response = self.client.chat.completions.create(messages=messages, **settings)
+
+                # Check again if the output was truncated due to length
+                if response.choices[0].finish_reason == "length":
+                    raise ValueError("The model's output was truncated due to length constraints on the second attempt.")
+
                 content = sanitise_text(response.choices[0].message.content)
                 
                 try:
@@ -165,7 +175,7 @@ class OpenAIHandler:
                     return content
                 except JSONDecodeError:
                     # If the second attempt also fails, raise an error with the details
-                    raise ValueError(f"Failed to get a valid JSON response after two attempts. Last response:\n\n {content}")
+                    raise ValueError(f"Failed to get a valid JSON response after two attempts. Last response: {content}")
         
         return content
     
