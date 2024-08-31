@@ -2,6 +2,7 @@ import os
 from openai import OpenAI
 import tiktoken
 import json
+from json.decoder import JSONDecodeError
 from pdf2image import convert_from_path
 from PIL import Image
 import io
@@ -148,8 +149,26 @@ class OpenAIHandler:
 
         # Make the request
         response = self.client.chat.completions.create(messages=messages, **settings)
-        return sanitise_text(response.choices[0].message.content)
+        content = sanitise_text(response.choices[0].message.content)
 
+        if json_output:
+            try:
+                json.loads(content)  # Attempt to parse the response as JSON
+                return content
+            except JSONDecodeError:
+                # If the first attempt fails, try one more time
+                response = self.client.chat.completions.create(messages=messages, **settings)
+                content = sanitise_text(response.choices[0].message.content)
+                
+                try:
+                    json.loads(content)  # Attempt to parse the second response as JSON
+                    return content
+                except JSONDecodeError:
+                    # If the second attempt also fails, raise an error with the details
+                    raise ValueError(f"Failed to get a valid JSON response after two attempts. Last response:\n\n {content}")
+        
+        return content
+    
     def smart_transcribe(self, file_path, output_path, system_prompt_path, token_reduction=0.95, temperature=0.13, top_p=None, prompt_header="", prompt_memory_header="", prompt_structure_header=""):
         """
         Transcribes a given text file using the AI model's capabilities.
