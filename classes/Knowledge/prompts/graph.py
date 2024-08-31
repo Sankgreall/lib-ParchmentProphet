@@ -51,8 +51,6 @@ graph_user_prompt = """
                         
     - Determine relationships between the identified entities. Use the list of existing graph entities to help you create relationships even if an entity is not explicitly mentioned in the current chunk.
                         
-    - Do not fail to identify entities that are present in the text. Err on the side of caution and include entities if you are unsure.
-
     - Avoid duplication by matching entities to existing entities in the list provided. Even if the existing entity is misspelled, use it to maintain consistency.
 
     Now, analyze your chunk and extract all entities and relationships according to the instructions.
