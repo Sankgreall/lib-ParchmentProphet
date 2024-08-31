@@ -63,6 +63,7 @@ class KnowledgeGraph:
         self.entities_string = self.get_entity_list()
 
         # MODELS
+        self.models_index = "prod-models"
         self.latest_models = self.get_latest_models()
         self.report_gen_model = self.latest_models.get("report_gen_model","gpt-4o-2024-08-06")
         self.claim_answer_model = self.latest_models.get("claim_answer_model","gpt-4o-2024-08-06")
@@ -80,17 +81,17 @@ class KnowledgeGraph:
                 ],
                 "size": 1
             }
-            result = search_es(self.MODELS_INDEX, query)
+            result = search_es(self.models_index, query)
             
             if result["hits"]["total"]["value"] > 0:
                 results = result["hits"]["hits"][0]["_source"]
                 return results
             else:
                 # return default
-                return None
+                return {}
         except Exception:
             # return default
-            return None
+            return {}
 
     def process(self):
         # Preprocess documents

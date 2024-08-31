@@ -8,31 +8,40 @@ graph_system_prompt = """
 """
 
 graph_user_prompt = """
-    {header}                              
+    {header}
+    ##########################################                              
     # Chunk to review
+    ##########################################
                                 
     {chunk}
                                 
     ----
 
+    ##########################################                              
     # Existing Graph Entities
+    ##########################################                              
 
     {entities_list}
 
     ----
-                        
+
+    ##########################################                                              
     # Report expertise
+    ##########################################                              
                         
     {persona}
-                        
-    ## Document summary
-                        
+
+    ##########################################                                     
+    # Document summary
+    ##########################################                              
+                   
     {document_summary}
                         
     ----
                                 
     {instruction}
 
+        ##########################################                              
     # Instructions
 
     - Carefully read and analyze the text within your chunk.
