@@ -41,8 +41,9 @@ graph_user_prompt = """
                                 
     {instruction}
 
-        ##########################################                              
+    ##########################################                              
     # Instructions
+    ##########################################                              
 
     - Carefully read and analyze the text within your chunk.
                         
